@@ -1,0 +1,19 @@
+# Multi-Agent Content Repurposing Pipeline
+# Python 3.10+ required
+
+# Core dependencies
+openai>=1.12.0
+pydantic>=2.5.0
+
+# UI
+streamlit>=1.30.0
+
+# API server
+fastapi>=0.115.0
+uvicorn>=0.30.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Optional: for better error messages
+rich>=13.0.0
