@@ -1,4 +1,8 @@
 export default function LinkedInCard({ post, label = "Preview" }) {
+  if (!post || !post.content) {
+    return <div className="platform-card linkedin">No content available</div>;
+  }
+
   return (
     <article className="platform-card linkedin">
       <div className="platform-head">
@@ -11,14 +15,7 @@ export default function LinkedInCard({ post, label = "Preview" }) {
         </div>
       </div>
       <div className="platform-body">
-        <h4>{post.hook}</h4>
-        <p>{post.body}</p>
-        <p><strong>{post.call_to_action}</strong></p>
-        <div className="tag-row">
-          {post.hashtags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
-        </div>
+        <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{post.content}</p>
       </div>
       <div className="platform-actions">
         <span>Like</span><span>Comment</span><span>Repost</span><span>Send</span>

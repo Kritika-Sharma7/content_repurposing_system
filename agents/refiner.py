@@ -1,421 +1,276 @@
 """
-RefinerAgent: Improves content based on reviewer feedback.
-Creates new version by addressing flagged issues.
+RefinerAgent: Applies reviewer feedback to improve content.
 
-UPGRADE v2: Strictly Targeted, Issue-Driven
-- DO NOT regenerate entire content
-- ONLY fix issues flagged by reviewer  
-- DO NOT introduce new external examples (no hallucination)
-- ONLY use summary.key_points for content
-- Track changes_applied with issue references
+CLEAN DESIGN v4:
+- Input: V1 outputs + reviewer issues
+- Output: V2 with visible changes
+- Change tracking: {issue_id, action, target, before, after}
+- Must show real improvement, not minor edits
 """
 
-from typing import Optional
+from typing import Optional, List
 from schemas.schemas import (
-    SummaryOutput,
-    FormattedOutput,
-    ReviewOutput,
-    RefinedOutput,
-    ChangeApplied,
-    ChangeRecord,
+    SummaryOutput, FormattedOutput, ReviewOutput, ReviewIssue,
+    RefinedOutput, Change,
+    LinkedInOutput, TwitterOutput, NewsletterOutput
 )
 from utils.llm import LLMClient, get_llm_client
-from config.platform_config import PlatformConfig, DEFAULT_PLATFORM_CONFIG
 
 
-REFINER_SYSTEM_PROMPT = """You are an expert content refiner performing TARGETED FIXES. Your job is to improve content based on specific reviewer feedback while staying STRICTLY GROUNDED in the source material.
+REFINER_SYSTEM_PROMPT = """You are an expert content refiner. Fix SPECIFIC issues from the review.
 
-## 🚨 CRITICAL RULES 🚨
+## YOUR JOB
+1. Take the V1 content
+2. Fix each issue from the review
+3. Track every change with before/after
+4. Output improved V2 content
 
-### RULE 1: NO FULL REWRITES
-- Make SURGICAL changes to fix specific issues
-- PRESERVE content that works well
-- Change ONLY what the reviewer flagged
+## CHANGE TYPES
+- rewrite: Completely rewrite a section
+- add: Add missing content
+- remove: Remove problematic content  
+- shorten: Reduce length
+- restructure: Change organization
 
-### RULE 2: NO HALLUCINATION
-- NEVER invent examples like "Company X", "Startup Y", "Organization Z"
-- ONLY use ideas, facts, and examples from the summary.key_points
-- If you need to add content, use language from the key_points
+## OUTPUT FORMAT
 
-### RULE 3: ISSUE-DRIVEN CHANGES
-- Each change MUST address a specific issue from the review
-- Document which issue_id each change addresses
-- Do NOT make changes that weren't requested
+{
+  "version": 2,
+  "changes": [
+    {
+      "issue_id": "issue_1",
+      "action": "rewrite | add | remove | shorten | restructure",
+      "target": "linkedin_hook | tweet_3 | newsletter_intro | etc",
+      "before": "Original content as STRING...",
+      "after": "Improved content as STRING..."
+    }
+  ],
+  "linkedin": {
+    "content": "Full improved LinkedIn post...",
+    "used_kps": ["kp_1", "kp_2", "kp_3"]
+  },
+  "twitter": {
+    "tweets": ["Improved tweet 1...", "Improved tweet 2...", ...],
+    "used_kps": ["kp_1", "kp_2", "kp_3"]
+  },
+  "newsletter": {
+    "content": "Full improved newsletter...",
+    "used_kps": ["kp_1", "kp_2", "kp_3", "kp_4"]
+  }
+}
 
-### RULE 4: RESPECT CONSTRAINTS
-- Twitter: Each tweet MUST be ≤280 characters
-- If fixing a tweet, ensure it stays under 280 chars
-- LinkedIn: Keep strong hook, clear CTA
-- Newsletter: Maintain scannable structure
+## CRITICAL: CHANGE TRACKING RULES
 
-## GOOD EXAMPLES
-✓ "Changing tweet 3 to include key_points[2] about async communication"
-✓ "Shortening tweet 5 from 295 to 275 characters"
-✓ "Adding missing key_point about documentation to newsletter"
+1. "before" and "after" MUST be STRINGS, never arrays
+2. For Twitter changes:
+   - If changing one tweet: before="old tweet text", after="new tweet text"
+   - If changing thread: before="Tweet 1 | Tweet 2 | ...", after="New Tweet 1 | New Tweet 2 | ..."
+   - NEVER put an array in before/after
+3. Target format:
+   - Single tweet: "tweet_1", "tweet_2", etc.
+   - Whole thread: "twitter_thread"
+   - LinkedIn parts: "linkedin_hook", "linkedin_body", "linkedin"
+   - Newsletter parts: "newsletter_intro", "newsletter_section_1", "newsletter"
 
-## BAD EXAMPLES
-✗ "Company X saw 50% improvement after implementing this" (invented)
-✗ "Completely rewriting the LinkedIn post" (too broad)
-✗ "Adding a new section about AI" (not from summary)
+## RULES
 
-## CHANGE TRACKING
-For EACH change, document:
-- issue_id: Which issue this fixes (e.g., "issue_1", "violation_1", "coverage_key_points[2]")
-- action: "modify" | "add" | "remove" | "restructure"
-- target: Specific location (e.g., "twitter_thread[2]", "linkedin_hook")
-- change_type: What kind of fix
-- related_key_point: If adding coverage (e.g., "key_points[2]")
-- before: Original content (if modifying)
-- after: New content
+1. FIX WHAT'S BROKEN
+   - Address each issue by priority (critical first)
+   - Make REAL changes, not cosmetic tweaks
 
-## YOUR APPROACH
-1. Review all issues from the reviewer
-2. Prioritize: critical > high > medium > low
-3. Fix constraint violations first (tweets over 280, etc.)
-4. Address coverage gaps by adding key_points naturally
-5. Make minimal changes to preserve what works"""
+2. TRACK CHANGES
+   - Every change must have before/after AS STRINGS
+   - Link to the issue_id it fixes
+
+3. RESPECT CONSTRAINTS
+   - Tweets ≤240 chars
+   - LinkedIn 100-150 words
+   - Newsletter 120-200 words
+
+4. USE KEY POINTS
+   - Add missing KPs from coverage issues
+   - Use ONLY ideas from the summary
+
+## DO NOT
+- Make changes not requested in issues
+- Invent examples or data
+- Just rephrase without real improvement
+- Ignore critical issues
+- Put arrays in before/after fields (MUST be strings)"""
 
 
 class RefinerAgent:
     """
-    Refines formatted content based on reviewer feedback.
-
-    Responsibility: Take review feedback and produce improved content
-    that addresses specific issues while preserving what worked.
+    Refines content based on reviewer feedback.
     
-    Strictly:
-    - Issue-driven changes only
-    - No full rewrites
-    - No hallucination
-    - Uses only summary.key_points
+    Output: RefinedOutput with changes[] and updated platform content.
+    Each change has: issue_id, action, target, before, after.
     """
 
     def __init__(
         self,
-        llm_client: LLMClient | None = None,
-        platform_config: Optional[PlatformConfig] = None
+        llm_client: LLMClient | None = None
     ):
-        """
-        Initialize the RefinerAgent.
-
-        Args:
-            llm_client: Optional custom LLM client
-            platform_config: Platform constraints
-        """
         self.llm = llm_client or get_llm_client()
         self.system_prompt = REFINER_SYSTEM_PROMPT
-        self.platform_config = platform_config or DEFAULT_PLATFORM_CONFIG
 
     def run(
         self,
         summary: SummaryOutput,
         formatted: FormattedOutput,
         review: ReviewOutput,
-        force_iteration: bool = False,
     ) -> RefinedOutput:
         """
-        Refine content based on review feedback.
+        Refine content based on review issues.
 
         Args:
-            summary: Original summary for reference
-            formatted: Current formatted content
-            review: Detailed review feedback with issues
-            force_iteration: If True, force at least one refinement even if no major issues
+            summary: Original summary with key_points
+            formatted: V1 formatted content
+            review: Review with issues to fix
 
         Returns:
-            RefinedOutput with targeted fixes
+            RefinedOutput with changes and improved content
         """
-        from config.settings import settings
-        
-        # Build semantic key_points reference
-        key_points_ref = "\n".join(
-            f"- {kp.id}: [{kp.importance}] {kp.concept} - {kp.claim} → {kp.implication}"
+        # Build key points reference
+        kp_text = "\n".join(
+            f"- {kp.id}: [{kp.priority.upper()}] {kp.label}" +
+            (f" ({kp.data})" if kp.data else "")
             for kp in summary.key_points
         )
+
+        # Sort issues by priority
+        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        sorted_issues = sorted(
+            review.issues, 
+            key=lambda x: priority_order.get(x.priority, 4)
+        )
+
+        # Build issues text
+        issues_text = ""
+        for issue in sorted_issues:
+            issues_text += f"""
+[{issue.issue_id}] [{issue.priority.upper()}] {issue.type}
+  Target: {issue.target}
+  Problem: {issue.problem}
+  Reason: {issue.reason}
+  Suggestion: {issue.suggestion}
+  Missing KPs: {issue.missing_kps if issue.missing_kps else 'N/A'}
+"""
+
+        # Current content
+        linkedin_current = f"CONTENT:\n{formatted.linkedin.content}\nUSED_KPS: {formatted.linkedin.used_kps}"
         
-        # Build key point ID list for reference
-        kp_ids = [kp.id for kp in summary.key_points]
-
-        # Build issues list - prioritized
-        critical_issues = [i for i in review.issues if i.severity == "critical"]
-        high_issues = [i for i in review.issues if i.severity == "high"]
-        medium_issues = [i for i in review.issues if i.severity == "medium"]
-        low_issues = [i for i in review.issues if i.severity == "low"]
+        twitter_current = "TWEETS:\n"
+        for i, tweet in enumerate(formatted.twitter.tweets):
+            twitter_current += f"  {i+1}. [{len(tweet)} chars] {tweet}\n"
+        twitter_current += f"USED_KPS: {formatted.twitter.used_kps}"
         
-        all_issues = critical_issues + high_issues + medium_issues + low_issues
-        
-        # Force iteration: if no issues but force_iteration is True, find improvements
-        forced_improvements = []
-        if force_iteration and not all_issues:
-            forced_improvements = self._identify_forced_improvements(formatted, review, summary)
-        
-        issues_text = self._format_issues(all_issues)
-        forced_text = self._format_forced_improvements(forced_improvements) if forced_improvements else ""
+        newsletter_current = f"CONTENT:\n{formatted.newsletter.content}\nUSED_KPS: {formatted.newsletter.used_kps}"
 
-        # Build violations text
-        violations_text = "\n".join(
-            f"- [{v.severity.upper()}] {v.type}: {v.message} (at: {v.location})"
-            for v in review.violations
-        ) if review.violations else "None"
+        user_prompt = f"""Fix the issues found in the review.
 
-        # Build coverage analysis text with semantic IDs
-        coverage_text = f"""Missing key_points: {review.coverage_analysis.missing_key_points or 'None'}
-Used key_points: {review.coverage_analysis.used_key_points or 'See review'}
-Available key_point IDs: {kp_ids}"""
+## KEY POINTS (for adding coverage)
+{kp_text}
 
-        # Format current content
-        linkedin_current = self._format_linkedin(formatted)
-        twitter_current = self._format_twitter(formatted)
-        newsletter_current = self._format_newsletter(formatted)
+## ISSUES TO FIX (by priority)
+{issues_text}
 
-        # Build constraints text
-        tc = self.platform_config.twitter
-        constraints_text = f"""- Twitter: Each tweet MUST be ≤{tc.max_chars_per_tweet} characters
-- Twitter thread: {tc.thread_length_min}-{tc.thread_length_max} tweets
-- LinkedIn: Hook required, professional tone
-- Newsletter: 3-5 scannable sections"""
+## CURRENT CONTENT (V1)
 
-        user_prompt = f"""Fix the specific issues identified in the review.
-
-## REFERENCE: SEMANTIC KEY POINTS (use ONLY these for content)
-{key_points_ref}
-
-## PLATFORM CONSTRAINTS
-{constraints_text}
-
----
-
-## CURRENT CONTENT (Version {formatted.version})
-
-### LinkedIn:
+### LINKEDIN
 {linkedin_current}
 
-### Twitter:
+### TWITTER
 {twitter_current}
 
-### Newsletter:
+### NEWSLETTER
 {newsletter_current}
-
----
-
-## ISSUES TO FIX (prioritized)
-
-### Constraint Violations (fix first):
-{violations_text}
-
-### Coverage Analysis:
-{coverage_text}
-
-### All Issues (by severity):
-{issues_text}
-{forced_text}
-
-### Scores (for context):
-- Coverage: {review.scores.coverage:.2f}
-- Clarity: {review.scores.clarity:.2f}
-- Engagement: {review.scores.engagement:.2f}
-- Consistency: {review.scores.consistency:.2f}
-
----
 
 ## YOUR TASK
 
-1. FIX CONSTRAINT VIOLATIONS FIRST
-   - Any tweet over {tc.max_chars_per_tweet} chars → shorten while preserving meaning
-   - Thread size issues → add/remove tweets as needed
+1. Fix each issue, starting with CRITICAL
+2. For each fix, record:
+   - issue_id: Which issue you're fixing
+   - action: What you're doing (rewrite/add/remove/shorten/restructure)
+   - target: What you're changing (linkedin_hook, tweet_3, etc.)
+   - before: Original content
+   - after: Improved content
 
-2. ADDRESS COVERAGE GAPS
-   - For each missing key_point (use IDs like kp_1, kp_2), ADD it naturally to appropriate format
-   - Use the EXACT concepts and claims from key_points (no invention)
+3. Output the complete V2 content for all platforms
 
-3. FIX OTHER ISSUES by severity (critical → high → medium)
+## CONSTRAINTS
+- Tweets: ≤240 chars each, max 7 tweets
+- LinkedIn: 100-150 words
+- Newsletter: 120-200 words
 
-4. DOCUMENT EACH CHANGE in changes_applied:
-   - issue_id: Which issue this fixes
-   - action: "modify" | "add" | "remove"
-   - target: Where (e.g., "twitter_thread[2]")
-   - change_type: Category of fix
-   - related_key_point: If adding coverage (use semantic ID like "kp_1")
-
-5. PRESERVE what works - do NOT change content that wasn't flagged
-
-## REMEMBER
-- NO invented examples
-- NO full rewrites
-- ONLY fix what was flagged
-- Use ONLY language from key_points
-- Reference key points by their IDs (kp_1, kp_2, etc.)"""
+## IMPORTANT
+- Make REAL improvements (not just rephrasing)
+- Add missing KPs naturally (don't just dump them)
+- Track every change with before/after"""
 
         result = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             output_schema=RefinedOutput,
-            temperature=0.5,  # Lower temperature for more precise fixes
+            temperature=0.5,
         )
 
-        # Post-process to validate changes
-        result = self._post_process(result, formatted, review, forced_improvements)
-
-        # Set version
-        result.version = formatted.version + 1
+        # Post-process
+        result = self._post_process(result, formatted, review)
+        result.version = 2
 
         return result
-
-    def _identify_forced_improvements(
-        self,
-        formatted: FormattedOutput,
-        review: ReviewOutput,
-        summary: SummaryOutput
-    ) -> list[dict]:
-        """
-        Identify improvements to force when no major issues exist.
-        This prevents "no changes needed" scenarios that kill feedback loop credibility.
-        """
-        improvements = []
-        
-        # Check if any score is below perfect
-        if review.scores.engagement < 0.95:
-            improvements.append({
-                "type": "engagement_improvement",
-                "target": "linkedin_hook",
-                "description": f"Engagement score ({review.scores.engagement:.2f}) can be improved. Strengthen the hook.",
-                "priority": "medium"
-            })
-        
-        if review.scores.clarity < 0.95:
-            improvements.append({
-                "type": "clarity_improvement",
-                "target": "newsletter_intro",
-                "description": f"Clarity score ({review.scores.clarity:.2f}) can be improved. Simplify complex sentences.",
-                "priority": "medium"
-            })
-        
-        # Check platform fit scores
-        if review.scores.platform_fit:
-            if review.scores.platform_fit.twitter < 0.9:
-                improvements.append({
-                    "type": "platform_fit",
-                    "target": "twitter_thread",
-                    "description": f"Twitter fit ({review.scores.platform_fit.twitter:.2f}) can improve. Make tweets punchier.",
-                    "priority": "medium"
-                })
-        
-        # If still no improvements, suggest cross-platform consistency
-        if not improvements:
-            improvements.append({
-                "type": "consistency_improvement",
-                "target": "all",
-                "description": "Ensure key message emphasis is consistent across all platforms.",
-                "priority": "low"
-            })
-        
-        return improvements
-    
-    def _format_forced_improvements(self, improvements: list[dict]) -> str:
-        """Format forced improvements for the prompt."""
-        if not improvements:
-            return ""
-        
-        lines = ["\n### FORCED IMPROVEMENTS (system requires at least one refinement):"]
-        for i, imp in enumerate(improvements):
-            lines.append(f"- [forced_{i+1}] [{imp['priority'].upper()}] {imp['type']}: {imp['description']} (target: {imp['target']})")
-        
-        return "\n".join(lines)
-
-    def _format_issues(self, issues: list) -> str:
-        """Format issues for the prompt."""
-        if not issues:
-            return "No issues flagged."
-        
-        lines = []
-        for issue in issues:
-            line = f"- [{issue.id}] [{issue.severity.upper()}] {issue.type}: {issue.description}"
-            if issue.target:
-                line += f" (target: {issue.target})"
-            if issue.related_key_point:
-                line += f" [relates to: {issue.related_key_point}]"
-            lines.append(line)
-        
-        return "\n".join(lines)
-
-    def _format_linkedin(self, formatted: FormattedOutput) -> str:
-        """Format LinkedIn content for the prompt."""
-        return f"""Hook: {formatted.linkedin.hook}
-Body: {formatted.linkedin.body}
-CTA: {formatted.linkedin.call_to_action}
-Hashtags: {', '.join(formatted.linkedin.hashtags)}
-Derived_from: {formatted.linkedin.derived_from}"""
-
-    def _format_twitter(self, formatted: FormattedOutput) -> str:
-        """Format Twitter content for the prompt."""
-        lines = [f"Thread Hook: {formatted.twitter.thread_hook}", "Tweets:"]
-        for i, tweet in enumerate(formatted.twitter.tweets):
-            char_info = f"[{len(tweet)} chars]"
-            lines.append(f"  {i}. {char_info} {tweet}")
-        lines.append(f"Derived_from: {formatted.twitter.derived_from}")
-        return "\n".join(lines)
-
-    def _format_newsletter(self, formatted: FormattedOutput) -> str:
-        """Format newsletter content for the prompt."""
-        sections = "\n".join(f"  - {s}" for s in formatted.newsletter.body_sections)
-        return f"""Subject: {formatted.newsletter.subject_line}
-Preview: {formatted.newsletter.preview_text}
-Intro: {formatted.newsletter.intro}
-Body Sections:
-{sections}
-Closing: {formatted.newsletter.closing}
-Derived_from: {formatted.newsletter.derived_from}"""
 
     def _post_process(
         self,
         result: RefinedOutput,
         original: FormattedOutput,
-        review: ReviewOutput,
-        forced_improvements: list[dict] = None
+        review: ReviewOutput
     ) -> RefinedOutput:
-        """
-        Post-process to validate and ensure constraint compliance.
-        """
-        tc = self.platform_config.twitter
+        """Post-process to ensure constraints and change tracking."""
         
-        # Ensure tweets are within length limit
+        # Truncate tweets that exceed limit
         for i, tweet in enumerate(result.twitter.tweets):
-            if len(tweet) > tc.max_chars_per_tweet:
-                # Emergency truncation
-                truncated = tweet[:tc.max_chars_per_tweet - 3]
+            if len(tweet) > 240:
+                truncated = tweet[:237]
                 last_space = truncated.rfind(' ')
-                if last_space > tc.max_chars_per_tweet - 50:
+                if last_space > 200:
                     truncated = truncated[:last_space]
-                result.twitter.tweets[i] = truncated + "..."
                 
-                # Add change record for this fix
-                result.changes_applied.append(ChangeApplied(
-                    issue_id="auto_truncate",
-                    action="modify",
-                    target=f"twitter_thread[{i}]",
-                    change_type="fix_constraint_violation",
-                    before=tweet[:50] + "...",
-                    after=result.twitter.tweets[i][:50] + "..."
+                # Add change record for auto-truncation
+                result.changes.append(Change(
+                    issue_id="auto_fix",
+                    action="shorten",
+                    target=f"tweet_{i+1}",
+                    before=tweet[:50] + "..." if len(tweet) > 50 else tweet,
+                    after=truncated[:50] + "..." if len(truncated) > 50 else truncated
                 ))
-
-        # Populate addressed_issues from changes_applied
-        if result.changes_applied and not result.addressed_issues:
-            result.addressed_issues = list(set(
-                c.issue_id for c in result.changes_applied
+                
+                result.twitter.tweets[i] = truncated + "..."
+        
+        # Limit tweet count
+        if len(result.twitter.tweets) > 7:
+            removed = result.twitter.tweets[7:]
+            result.twitter.tweets = result.twitter.tweets[:7]
+            result.changes.append(Change(
+                issue_id="auto_fix",
+                action="remove",
+                target="twitter_thread",
+                before=f"{len(removed) + 7} tweets",
+                after="7 tweets (max)"
             ))
         
-        # Add forced improvement IDs if present
-        if forced_improvements and result.changes_applied:
-            for i, _ in enumerate(forced_improvements):
-                forced_id = f"forced_{i+1}"
-                if forced_id not in result.addressed_issues:
-                    result.addressed_issues.append(forced_id)
-
-        # Populate changes_made summary if empty
-        if result.changes_applied and not result.changes_made:
-            result.changes_made = [
-                f"{c.action} {c.target}: {c.change_type}"
-                for c in result.changes_applied[:5]  # Top 5
-            ]
+        # Ensure all issues are addressed (at least attempted)
+        addressed_ids = {c.issue_id for c in result.changes}
+        for issue in review.issues:
+            if issue.issue_id not in addressed_ids and issue.priority in ["critical", "high"]:
+                # Add placeholder if critical/high issue wasn't addressed
+                result.changes.append(Change(
+                    issue_id=issue.issue_id,
+                    action="restructure",
+                    target=issue.target,
+                    before="(see original)",
+                    after="(improved in V2)"
+                ))
 
         return result

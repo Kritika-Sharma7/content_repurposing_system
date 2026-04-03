@@ -57,12 +57,6 @@ class PipelineRunRequest(BaseModel):
     api_key: Optional[str] = Field(default=None, description="Optional API key override")
     save_output: bool = Field(default=True)
     output_dir: str = Field(default="outputs")
-    score_threshold: float = Field(
-        default=0.85,
-        ge=0.0,
-        le=1.0,
-        description="Quality score threshold (0-1)"
-    )
     max_iterations: int = Field(
         default=2,
         ge=1,
@@ -74,16 +68,15 @@ class PipelineRunRequest(BaseModel):
 class IterationInfo(BaseModel):
     """Summary of a refinement iteration."""
     iteration: int
-    score: float
-    changes_count: int
+    issues_fixed: int
 
 
 class PipelineRunResponse(BaseModel):
     """Response from pipeline execution."""
     status: str
     executed_at: str
-    final_score: float
-    threshold_met: bool
+    total_issues: int
+    issues_fixed: int
     total_iterations: int
     iterations: List[IterationInfo]
     result: dict
@@ -169,16 +162,6 @@ def run_pipeline(payload: PipelineRunRequest) -> PipelineRunResponse:
             platforms=payload.user_preferences.platforms
         )
 
-    # Build settings
-    settings = SystemSettings(
-        feedback_loop=DEFAULT_SETTINGS.feedback_loop.model_copy(update={
-            "score_threshold": payload.score_threshold,
-            "max_iterations": payload.max_iterations
-        }),
-        scoring_weights=DEFAULT_SETTINGS.scoring_weights,
-        verbose=False
-    )
-
     try:
         llm_client = LLMClient(
             model=payload.model,
@@ -189,7 +172,7 @@ def run_pipeline(payload: PipelineRunRequest) -> PipelineRunResponse:
         orchestrator = PipelineOrchestrator(
             llm_client=llm_client,
             verbose=False,
-            settings=settings
+            max_iterations=payload.max_iterations
         )
         result = orchestrator.run(content, user_prefs)
 
@@ -201,8 +184,7 @@ def run_pipeline(payload: PipelineRunRequest) -> PipelineRunResponse:
         iterations_info = [
             IterationInfo(
                 iteration=it.iteration,
-                score=it.score,
-                changes_count=len(it.refined.changes_applied) if it.refined else 0
+                issues_fixed=it.issues_fixed
             )
             for it in result.iterations
         ]
@@ -210,9 +192,9 @@ def run_pipeline(payload: PipelineRunRequest) -> PipelineRunResponse:
         return PipelineRunResponse(
             status="success",
             executed_at=datetime.now().isoformat(),
-            final_score=result.final_score,
-            threshold_met=result.threshold_met,
-            total_iterations=result.total_iterations,
+            total_issues=result.total_issues,
+            issues_fixed=result.issues_fixed,
+            total_iterations=len(result.iterations),
             iterations=iterations_info,
             result=result.model_dump(),
         )

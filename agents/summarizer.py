@@ -1,136 +1,149 @@
 """
-SummarizerAgent: Extracts Content DNA from raw content.
-First agent in the pipeline - transforms raw text into structured, atomic summary data.
+SummarizerAgent: Extracts core_message + key_points from raw content.
 
-Outputs clean, minimal structure:
-- title, one_liner, intent, tone, structure
-- content_dna (core_conflict, key_question)
-- target_audience
-- key_points (id, concept, claim, implication, importance, type)
-- summary_quality (score, reason)
+CLEAN DESIGN v4:
+- Output ONLY: core_message + key_points (5-7 max)
+- KeyPoint: id, label, priority, type, data (optional)
+- Priority distribution: 2-3 critical, rest high/medium
+- NO: intent, tone, audience, conflict, scores
 """
 
-from typing import Optional, List, Tuple
-from schemas.schemas import (
-    SummaryOutput, KeyInsight, SemanticKeyPoint,
-    ContentDNA, SummaryQuality
-)
+from typing import Optional, List
+from schemas.schemas import SummaryOutput, KeyPoint
 from utils.llm import LLMClient, get_llm_client
 from config.user_preferences import UserPreferences, DEFAULT_USER_PREFERENCES
 
 
-# Audience-specific extraction strategies
-AUDIENCE_STRATEGIES = {
-    "founders": {
-        "focus": ["business impact", "decision-making", "ROI", "market insights", "growth strategies"],
-        "priority": "Extract insights that help with strategic decisions and business outcomes."
-    },
-    "engineers": {
-        "focus": ["systems", "workflows", "technical implementation", "architecture", "efficiency"],
-        "priority": "Focus on technical details, implementation patterns, and system design."
-    },
-    "marketers": {
-        "focus": ["audience engagement", "messaging", "conversion", "brand positioning", "trends"],
-        "priority": "Emphasize messaging angles, audience psychology, and engagement tactics."
-    },
-    "general professionals": {
-        "focus": ["practical applications", "career impact", "productivity", "collaboration"],
-        "priority": "Extract broadly applicable insights for professional development."
-    },
-    "investors": {
-        "focus": ["market trends", "financial impact", "risk assessment", "competitive landscape"],
-        "priority": "Focus on data-driven insights, market positioning, and growth indicators."
-    },
-    "default": {
-        "focus": ["key takeaways", "practical applications", "evidence", "implications"],
-        "priority": "Extract the most valuable, actionable insights from the content."
-    }
-}
+SUMMARIZER_SYSTEM_PROMPT = """You are Agent 1: Summarizer.
 
-
-SUMMARIZER_SYSTEM_PROMPT = """You are an expert content analyst performing CONTENT DNA EXTRACTION.
-
-Your goal is to extract structured, atomic, and semantically rich units from content.
+Your job is NOT to summarize text.
+Your job is to extract high-quality, decision-grade insights.
 
 ---
 
-## 🧠 CONTENT DNA (REQUIRED)
-
-Extract:
-- core_conflict: What tension/problem drives this content?
-- key_question: What question is this content answering?
+INPUT:
+Long-form content
 
 ---
 
-## 🧩 KEY POINTS (4-8 REQUIRED)
+OUTPUT:
+1. core_message (1–2 sentences)
+2. key_points (5–6 insights)
 
-Each key_point MUST have EXACTLY these fields:
+---
+
+CORE MESSAGE RULE:
+- Identify the central conflict or misconception
+- Make it sharp and opinionated
+
+Bad:
+"Productivity improves with focus"
+
+Good:
+"Most teams mistake responsiveness for productivity, but constant activity reduces meaningful output"
+
+---
+
+KEY POINT RULES:
+
+1. Each key point MUST be a complete insight sentence
+
+Bad:
+"Focus Time"
+"Written Proposals"
+
+Good:
+"Reducing meetings and protecting focus time improves execution speed"
+
+---
+
+2. Use CAUSE → EFFECT
+
+Example:
+"Interruptions fragment work, which reduces output quality"
+
+---
+
+3. Integrate DATA into the insight
+
+Bad:
+"Reduced meetings impact"
+
+Good:
+"Reducing meetings improved execution speed (cycle time ↓ 30%)"
+
+---
+
+4. Include at least one NON-OBVIOUS insight:
+- behavioral
+- cultural
+- misconception
+
+---
+
+5. Avoid vague language:
+❌ improves, enhances, helps  
+✅ reduces, creates, forces, enables
+
+---
+
+6. Prioritize quality over quantity:
+Return only 5–6 strong insights
+
+---
+
+PRIORITY LOGIC:
+
+CRITICAL:
+- core conflict
+- main mechanism
+- strongest data-backed insight
+
+HIGH:
+- supporting insights
+
+MEDIUM:
+- edge cases / nuance
+
+---
+
+OUTPUT FORMAT:
 
 {
-  "id": "kp_1",
-  "concept": "2-5 word topic",
-  "claim": "Clear assertion",
-  "implication": "Why it matters",
-  "importance": "critical | high | medium",
-  "type": "insight | data_point | strategy | observation"
-}
-
----
-
-## 🎯 QUALITY REQUIREMENTS
-
-- Extract BOTH explicit AND implicit ideas
-- Avoid generic phrasing
-- Each point must be specific and actionable
-- Claims must be verifiable from source
-
----
-
-## 🚫 STRICT RULES
-
-- DO NOT invent facts
-- DO NOT output vague concepts
-- DO NOT collapse multiple ideas into one key_point
-- DO NOT add extra fields to key_points
-
----
-
-Output must be structured JSON with: title, one_liner, intent, tone, structure, content_dna, target_audience, key_points, summary_quality."""
+  "core_message": "...",
+  "key_points": [
+    {
+      "id": "kp_1",
+      "label": "Complete insight sentence with cause-effect",
+      "reason": "Why this insight matters or mechanism behind it",
+      "priority": "critical",
+      "type": "insight"
+    }
+  ]
+}"""
 
 
 class SummarizerAgent:
     """
-    Extracts Content DNA from raw content.
-
-    Outputs clean structure:
-    - title, one_liner, intent, tone, structure
-    - content_dna (core_conflict, key_question)
-    - target_audience
-    - key_points (id, concept, claim, implication, importance, type)
-    - summary_quality (score, reason)
+    Extracts core_message + 5-6 HIGH-QUALITY key insights from content.
+    
+    Focus on conflict extraction, complete insight sentences, and cause-effect reasoning.
+    Output: SummaryOutput with core_message and 5-6 key_points.
+    Each KeyPoint has: id, label (complete sentence), reason, priority, type.
     """
 
     def __init__(
         self,
         llm_client: LLMClient | None = None,
-        min_key_points: int = 4,
-        max_retries: int = 2,
-        min_quality_score: float = 7.0
+        min_key_points: int = 5,
+        max_key_points: int = 6,
+        max_retries: int = 2
     ):
-        """
-        Initialize the SummarizerAgent.
-
-        Args:
-            llm_client: Optional custom LLM client
-            min_key_points: Minimum required key_points (default 4)
-            max_retries: Max retries if quality insufficient (default 2)
-            min_quality_score: Minimum quality score to accept (default 7.0)
-        """
         self.llm = llm_client or get_llm_client()
         self.system_prompt = SUMMARIZER_SYSTEM_PROMPT
         self.min_key_points = min_key_points
+        self.max_key_points = max_key_points
         self.max_retries = max_retries
-        self.min_quality_score = min_quality_score
 
     def run(
         self,
@@ -138,43 +151,29 @@ class SummarizerAgent:
         user_preferences: Optional[UserPreferences] = None
     ) -> SummaryOutput:
         """
-        Process raw content and produce Content DNA.
+        Extract core_message + key_points from content.
 
         Args:
-            content: Raw long-form text content to summarize
-            user_preferences: Optional user preferences to guide extraction
+            content: Raw long-form text to summarize
+            user_preferences: Optional preferences (used for context only)
 
         Returns:
-            SummaryOutput with key_points, content_dna, summary_quality
+            SummaryOutput with core_message and key_points
         """
         prefs = user_preferences or DEFAULT_USER_PREFERENCES
         word_count = len(content.split())
         
-        # Attempt extraction with quality-based retries
-        result = None
+        # Retry loop for quality
         for attempt in range(self.max_retries + 1):
             result = self._extract(content, word_count, prefs, attempt)
             
-            # Get quality score
-            quality_score = result.summary_quality.score if result.summary_quality else 0
+            # Validate priority distribution
+            critical_count = len([kp for kp in result.key_points if kp.priority == "critical"])
             
-            # Check if quality meets threshold (score >= 8)
-            if len(result.key_points) >= self.min_key_points and quality_score >= 8:
+            if len(result.key_points) >= self.min_key_points and critical_count >= 2:
                 return result
-            
-            if attempt < self.max_retries:
-                continue
         
-        # Return best attempt
         return result
-
-    def _get_audience_strategy(self, audience: str) -> dict:
-        """Get extraction strategy for audience type."""
-        audience_lower = audience.lower()
-        for key, strategy in AUDIENCE_STRATEGIES.items():
-            if key in audience_lower:
-                return strategy
-        return AUDIENCE_STRATEGIES["default"]
 
     def _extract(
         self,
@@ -183,151 +182,74 @@ class SummarizerAgent:
         prefs: UserPreferences,
         attempt: int
     ) -> SummaryOutput:
-        """Perform a single extraction attempt."""
+        """Perform extraction attempt."""
         
-        # Get audience-specific strategy
-        strategy = self._get_audience_strategy(prefs.audience)
-        
-        # Build retry context if this is a retry
-        retry_context = ""
+        retry_note = ""
         if attempt > 0:
-            retry_context = """
-⚠️ PREVIOUS ATTEMPT INSUFFICIENT
-FOR THIS RETRY:
-- Extract DEEPER insights (look for implicit ideas)
-- Be MORE specific in claims and implications
-- Ensure content_dna has core_conflict and key_question
+            retry_note = """
+⚠️ RETRY: Previous attempt had issues. This time:
+- Ensure 5-6 HIGH-QUALITY insights only
+- Include 2-3 CRITICAL priority points
+- Each label must be a COMPLETE SENTENCE with cause-effect  
+- Capture the main conflict/misconception
+- Include non-obvious insights (behavioral/cultural)
+- Integrate data into insights, don't separate
 """
 
-        user_prompt = f"""Analyze the following content and extract its CONTENT DNA.
-{retry_context}
-## USER PREFERENCES
-- Target Audience: {prefs.audience}
-- Content Goal: {prefs.goal}
-- Preferred Tone: {prefs.tone}
-- Platforms: {', '.join(prefs.platforms)}
+        user_prompt = f"""Extract decision-grade insights from this content.
+{retry_note}
+## CONTEXT
+- Word count: {word_count}
+- Target audience: {prefs.audience}
+- Goal: {prefs.goal}
 
-## AUDIENCE-SPECIFIC EXTRACTION STRATEGY
-For {prefs.audience}:
-- Focus areas: {', '.join(strategy['focus'])}
-- Priority: {strategy['priority']}
-
-## CONTENT TO ANALYZE
+## CONTENT
 ---
 {content}
 ---
 
-Word count: {word_count}
+## REQUIREMENTS
 
-## REQUIRED OUTPUT (EXACT STRUCTURE)
+1. Extract ONE core_message (1-2 sentences)
+   - Identify the central CONFLICT or misconception
+   - Make it sharp and opinionated
 
-### 1. key_points: Array of {self.min_key_points}-8 objects
-Each key_point MUST have EXACTLY these fields (no extras):
-{{
-  "id": "kp_1",
-  "concept": "async-first communication",
-  "claim": "reduces meetings by 60%",
-  "implication": "enables more deep work time",
-  "importance": "critical | high | medium",
-  "type": "insight | data_point | strategy | observation"
-}}
+2. Extract 5-6 key_points ONLY (quality over quantity):
+   - 2-3 CRITICAL (core conflict, main mechanism, strongest data)
+   - 2-3 HIGH (supporting insights)
+   - 0-1 MEDIUM (edge cases/nuance)
+   
+3. For each key_point:
+   - id: "kp_1", "kp_2", etc.
+   - label: COMPLETE insight sentence with cause-effect
+   - reason: Why this matters or mechanism behind it (optional)
+   - priority: "critical" | "high" | "medium"
+   - type: "insight" | "strategy" | "data"
 
-### 2. content_dna: Simple DNA object (REQUIRED)
-{{
-  "core_conflict": "efficiency vs quality tradeoff",
-  "key_question": "How can teams reduce meetings without losing alignment?"
-}}
+CRITICAL RULES:
+- Each label must be a complete sentence, not a phrase
+- Include at least one non-obvious insight (behavioral/cultural/misconception)  
+- Integrate data INTO insights, don't separate: "X improves Y (metric ↓ 30%)"
+- Use specific verbs: reduces, creates, forces, enables (NOT improves, enhances, helps)
+- Focus on WHAT happens and WHY it matters
 
-### 3. summary_quality: Self-assessment
-{{
-  "score": 8.5,
-  "reason": "Good coverage with structured insights"
-}}
+Return structured JSON with core_message and key_points array."""
 
-### 4. Other required fields:
-- title: Generated title
-- one_liner: Single sentence hook
-- intent: "educational" | "persuasive" | "informational" | "inspirational" | "analytical"
-- tone: "informative" | "analytical" | "storytelling" | "conversational" | "formal" | "provocative"
-- structure: "problem-solution" | "narrative" | "listicle" | "how-to" | "case-study" | "opinion" | "research"
-- target_audience: "{prefs.audience}"
-
-Extract intelligently for {prefs.audience} with goal: {prefs.goal}."""
-
-        # Generate structured output via LLM
         result = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             output_schema=SummaryOutput,
-            temperature=0.5 if attempt == 0 else 0.65,
+            temperature=0.5 if attempt == 0 else 0.6,
         )
-
-        # Ensure word count is captured
-        result.word_count_original = word_count
 
         # Ensure all key_points have IDs
         for i, kp in enumerate(result.key_points):
             if not kp.id:
                 kp.id = f"kp_{i + 1}"
 
-        # Fallback: derive key_points from insights if empty
-        if not result.key_points and result.key_insights:
-            result.key_points = [
-                SemanticKeyPoint(
-                    id=f"kp_{i + 1}",
-                    concept=ins.topic,
-                    claim=ins.insight,
-                    implication="Key insight from content",
-                    importance="high" if ins.importance == "high" else "medium",
-                    type="insight"
-                )
-                for i, ins in enumerate(result.key_insights)
-            ]
-
-        # Ensure core_message is set
-        if not result.core_message:
-            result.core_message = result.one_liner
-
-        # Simple quality score if LLM didn't provide one
-        if not result.summary_quality:
-            score, reason = self._compute_simple_quality(result)
-            result.summary_quality = SummaryQuality(score=score, reason=reason)
-
         return result
     
-    def _compute_simple_quality(self, summary: SummaryOutput) -> Tuple[float, str]:
-        """Simple quality score - just count and coverage."""
-        kp_count = len(summary.key_points) if summary.key_points else 0
-        has_dna = summary.content_dna is not None
-        
-        # Base score from key points (target: 6)
-        score = min(kp_count / 6, 1.0) * 7  # Up to 7 points
-        
-        # Bonus for content DNA
-        if has_dna:
-            score += 2.0
-        
-        # Bonus for variety (has critical points)
-        if kp_count > 0:
-            has_critical = any(kp.importance == "critical" for kp in summary.key_points)
-            if has_critical:
-                score += 1.0
-        
-        score = min(round(score, 1), 10.0)
-        
-        # Simple reason
-        if score >= 8.5:
-            reason = "Good coverage with structured insights"
-        elif not has_dna:
-            reason = "Could include content DNA (core_conflict, key_question)"
-        elif kp_count < 5:
-            reason = "Could extract more key points"
-        else:
-            reason = "Good extraction"
-        
-        return score, reason
-    
-    def validate_output(self, summary: SummaryOutput) -> Tuple[bool, List[str]]:
+    def validate_output(self, summary: SummaryOutput) -> tuple[bool, List[str]]:
         """
         Validate the summary output.
         
@@ -336,15 +258,17 @@ Extract intelligently for {prefs.audience} with goal: {prefs.goal}."""
         """
         issues = []
         
-        if len(summary.key_points) < self.min_key_points:
-            issues.append(
-                f"Insufficient key_points: {len(summary.key_points)} < {self.min_key_points}"
-            )
+        kp_count = len(summary.key_points)
+        if kp_count < self.min_key_points:
+            issues.append(f"Too few key_points: {kp_count} < {self.min_key_points}")
+        if kp_count > self.max_key_points:
+            issues.append(f"Too many key_points: {kp_count} > {self.max_key_points}")
         
-        if not summary.content_dna:
-            issues.append("Missing content_dna")
+        critical_count = len([kp for kp in summary.key_points if kp.priority == "critical"])
+        if critical_count < 2:
+            issues.append(f"Need at least 2 critical key_points, got {critical_count}")
         
-        if summary.summary_quality and summary.summary_quality.score < self.min_quality_score:
-            issues.append(f"Quality score below threshold: {summary.summary_quality.score}")
+        if not summary.core_message or len(summary.core_message) < 10:
+            issues.append("core_message is missing or too short")
         
         return len(issues) == 0, issues

@@ -1,4 +1,8 @@
 export default function TwitterThread({ thread, label = "Preview" }) {
+  if (!thread || !thread.tweets || thread.tweets.length === 0) {
+    return <div className="platform-card twitter">No tweets available</div>;
+  }
+
   return (
     <article className="platform-card twitter">
       <div className="platform-head">
@@ -11,10 +15,9 @@ export default function TwitterThread({ thread, label = "Preview" }) {
         </div>
       </div>
       <div className="platform-body">
-        <h4>{thread.thread_hook}</h4>
         <div className="thread-list">
           {thread.tweets.map((tweet, idx) => (
-            <div className="tweet-block" key={`${idx}-${tweet.slice(0, 8)}`}>
+            <div className="tweet-block" key={idx}>
               <div className="tweet-num">{idx + 1}/{thread.tweets.length}</div>
               <p>{tweet}</p>
             </div>

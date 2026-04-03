@@ -97,54 +97,58 @@ export default function DemoPage() {
         <section className="pipeline-stack">
           <SummarizerView
             inputText={inputText || sampleInput}
-            summary={result.input_summary}
+            summary={result.summary}
             loading={false}
           />
-          <FormatterView formatted={result.version_1} loading={false} />
+          <FormatterView formatted={result.v1} loading={false} />
           <ReviewerView review={result.review} loading={false} />
-          <RefinerView v1={result.version_1} v2={result.version_2} loading={false} />
+          <RefinerView v1={result.v1} v2={result.v2} loading={false} />
         </section>
       )}
 
       {result && (
         <>
-          {/* Score Evolution */}
+          {/* Issues & Improvements */}
           <section className="card">
-            <h3>Quality Score Evolution</h3>
+            <h3>Review & Refinement Metrics</h3>
             <div className="score-evolution">
-              {result.iterations && result.iterations.map((iter, idx) => (
-                <div key={idx} className="iteration-box">
-                  <span>Iteration {iter.iteration}</span>
-                  <strong>{iter.score ? (iter.score * 100).toFixed(0) : 'N/A'}%</strong>
-                </div>
-              ))}
-              <div className="iteration-box final">
-                <span>Final Score</span>
-                <strong>{result.final_score ? (result.final_score * 100).toFixed(0) : 'N/A'}%</strong>
+              <div className="iteration-box">
+                <span>Total Issues Found</span>
+                <strong>{result.total_issues || 0}</strong>
               </div>
               <div className="iteration-box">
-                <span>Threshold</span>
-                <strong>{result.threshold_met ? '✓ Met' : '✗ Not Met'}</strong>
+                <span>Issues Fixed</span>
+                <strong>{result.issues_fixed || 0}</strong>
+              </div>
+              {result.iterations && result.iterations.length > 0 && (
+                <div className="iteration-box">
+                  <span>Refinement Iterations</span>
+                  <strong>{result.iterations.length}</strong>
+                </div>
+              )}
+              <div className="iteration-box final">
+                <span>Status</span>
+                <strong>✓ Complete</strong>
               </div>
             </div>
           </section>
 
-          <VersionPanel v1={result.version_1} v2={result.version_2} />
+          <VersionPanel v1={result.v1} v2={result.v2} />
 
           <section className="card">
             <h2>Final Output Showcase</h2>
             <div className="tab-grid">
               <div>
                 <h4>LinkedIn Final</h4>
-                <LinkedInCard post={result.version_2.linkedin} label="V2 Final" />
+                <LinkedInCard post={result.v2.linkedin} label="V2 Final" />
               </div>
               <div>
                 <h4>Twitter/X Final</h4>
-                <TwitterThread thread={result.version_2.twitter} label="V2 Final" />
+                <TwitterThread thread={result.v2.twitter} label="V2 Final" />
               </div>
               <div>
                 <h4>Newsletter Final</h4>
-                <NewsletterView newsletter={result.version_2.newsletter} label="V2 Final" />
+                <NewsletterView newsletter={result.v2.newsletter} label="V2 Final" />
               </div>
             </div>
           </section>

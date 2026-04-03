@@ -1,4 +1,11 @@
 export default function NewsletterView({ newsletter, label = "Preview" }) {
+  if (!newsletter || !newsletter.content) {
+    return <div className="platform-card newsletter">No content available</div>;
+  }
+
+  // Parse markdown headings for better display
+  const lines = newsletter.content.split('\n');
+  
   return (
     <article className="platform-card newsletter">
       <div className="platform-head">
@@ -8,15 +15,18 @@ export default function NewsletterView({ newsletter, label = "Preview" }) {
         </div>
       </div>
       <div className="platform-body">
-        <h4>{newsletter.subject_line}</h4>
-        <p className="preview">{newsletter.preview_text}</p>
-        <p>{newsletter.intro}</p>
-        <ul>
-          {newsletter.body_sections.map((section) => (
-            <li key={section.slice(0, 20)}>{section}</li>
-          ))}
-        </ul>
-        <p><strong>{newsletter.closing}</strong></p>
+        <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7' }}>
+          {lines.map((line, idx) => {
+            if (line.startsWith('## ')) {
+              return <h4 key={idx} style={{ margin: '16px 0 8px', fontSize: 16, fontWeight: 700 }}>{line.replace('## ', '')}</h4>;
+            } else if (line.startsWith('# ')) {
+              return <h3 key={idx} style={{ margin: '20px 0 10px', fontSize: 18, fontWeight: 700 }}>{line.replace('# ', '')}</h3>;
+            } else if (line.trim()) {
+              return <p key={idx} style={{ margin: '8px 0' }}>{line}</p>;
+            }
+            return <br key={idx} />;
+          })}
+        </div>
       </div>
     </article>
   );

@@ -1,6 +1,12 @@
 # 🚀 Quick Start Guide
 
-Get ContentForge AI up and running in 5 minutes!
+## ✅ UPDATED - Import Issue Fixed (April 3, 2026)
+
+The `KeyInsight` import error has been resolved! The system now uses Clean Design v4 schemas.
+
+---
+
+Get the Multi-Agent Content System up and running in 5 minutes!
 
 ## Prerequisites
 
@@ -50,7 +56,23 @@ OPENAI_TEMPERATURE=0.7
 
 Save and close the file.
 
-## Step 3: Test the Installation
+## Step 3: Test the Setup
+
+**First, verify imports work:**
+```bash
+python test_imports.py
+```
+
+Should show:
+```
+Testing imports...
+  ✓ schemas OK
+  ✓ agents OK
+  ✓ pipeline OK
+✅ All imports successful!
+```
+
+**Then test with sample content:**
 
 Run with sample content:
 
@@ -87,15 +109,28 @@ You'll see files like:
 - `review_20260402_143000.json`
 - `version_2_20260402_143000.json`
 
-## Step 5: Try the UI
+## Step 5: Try the React UI
 
-Launch the Streamlit interface:
-
+**Option 1: Start both servers at once (Windows)**
 ```bash
-streamlit run ui/app.py
+start-all.bat
 ```
 
-Open http://localhost:8501 in your browser and you'll see the beautiful web interface!
+**Option 2: Start separately**
+```bash
+# Terminal 1: Start backend API
+python api_server.py
+
+# Terminal 2: Start frontend
+cd react-ui
+npm install  # first time only
+npm run dev
+```
+
+**Access:**
+- Frontend UI: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
 ## 🎯 What to Try Next
 
@@ -131,23 +166,29 @@ python main.py --sample --platforms linkedin
 python main.py --sample --platforms linkedin twitter
 ```
 
-## 🎨 React UI (Optional)
+## 🎨 Streamlit UI (Alternative)
 
-For a modern frontend experience:
+For the Streamlit interface:
 
 ```bash
-# Terminal 1: Start backend
-python api_server.py
-
-# Terminal 2: Start frontend
-cd react-ui
-npm install
-npm run dev
+streamlit run ui/app.py
 ```
 
-Open http://localhost:5173 for the React UI.
+Open http://localhost:8501
 
-## 📊 Understanding the Output
+---
+
+## 🐛 Troubleshooting
+
+### ✅ "Cannot import name 'KeyInsight'" - FIXED
+**Status:** This issue has been resolved in the latest version.
+**What was done:** Updated `schemas/__init__.py` to use Clean Design v4 schemas.
+
+If you still see this:
+```bash
+# Pull latest changes and test
+python test_imports.py
+```
 
 ### Summary (Stage 1)
 - **title**: Generated title for your content

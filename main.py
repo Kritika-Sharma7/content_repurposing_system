@@ -27,7 +27,6 @@ from pipeline.orchestrator import PipelineOrchestrator
 from utils.llm import LLMClient
 from utils.content_fetcher import resolve_input, ContentFetchError
 from config.user_preferences import UserPreferences
-from config.settings import SystemSettings, FeedbackLoopSettings, ScoringWeights
 
 
 # Sample content for demonstration
@@ -134,12 +133,6 @@ Examples:
 
     # Pipeline settings
     parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.85,
-        help="Quality score threshold 0-1 (default: 0.85)",
-    )
-    parser.add_argument(
         "--max-iterations",
         type=int,
         default=2,
@@ -229,19 +222,6 @@ Examples:
         platforms=args.platforms
     )
 
-    # Build system settings
-    settings = SystemSettings(
-        feedback_loop=FeedbackLoopSettings(
-            score_threshold=args.threshold,
-            max_iterations=args.max_iterations,
-            min_key_points=4,
-            retry_summarizer_on_failure=True,
-            max_summarizer_retries=2
-        ),
-        scoring_weights=ScoringWeights(),
-        verbose=not args.quiet
-    )
-
     # Initialize LLM client
     try:
         llm_client = LLMClient(
@@ -257,7 +237,7 @@ Examples:
     orchestrator = PipelineOrchestrator(
         llm_client=llm_client,
         verbose=not args.quiet,
-        settings=settings,
+        max_iterations=args.max_iterations,
     )
 
     try:
@@ -279,17 +259,16 @@ Examples:
         print("\n" + "=" * 60)
         print("PIPELINE COMPLETE")
         print("=" * 60)
-        print(f"Title: {result.input_summary.title}")
-        print(f"Content DNA: {result.input_summary.intent} / {result.input_summary.tone}")
-        print(f"Key points extracted: {len(result.input_summary.key_points)}")
-        print(f"Iterations: {result.total_iterations}")
-        print(f"Final score: {result.final_score:.2f} (threshold: {args.threshold})")
-        print(f"Threshold met: {'Yes' if result.threshold_met else 'No'}")
+        print(f"Core message: {result.summary.core_message}")
+        print(f"Key points extracted: {len(result.summary.key_points)}")
+        print(f"Total issues found: {result.total_issues}")
+        print(f"Issues fixed: {result.issues_fixed}")
+        print(f"Iterations: {len(result.iterations)}")
         
-        if result.version_2.changes_applied:
-            print(f"\nChanges applied: {len(result.version_2.changes_applied)}")
-            for change in result.version_2.changes_applied[:3]:
-                print(f"  • {change.action} {change.target}: {change.change_type}")
+        if result.v2.changes:
+            print(f"\nChanges made: {len(result.v2.changes)}")
+            for change in result.v2.changes[:3]:
+                print(f"  • {change.action} {change.target}")
 
         if not args.no_save:
             print(f"\nResults saved to: {args.output}/")

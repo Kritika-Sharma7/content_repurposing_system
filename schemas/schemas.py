@@ -1,644 +1,506 @@
 """
 Pydantic schemas for structured inter-agent communication.
-All agents communicate using these typed data models - never raw text.
 
-Schema contracts ensure:
-- Type safety between agents
-- Deterministic data flow
-- Full traceability of transformations
-
-UPGRADE v2: Enhanced with:
-- Content DNA extraction (intent, tone, structure)
-- Platform-aware formatting with constraints
-- Multi-dimensional review with coverage analysis
-- Targeted refinement with issue tracking
-- Full versioning system
-
-UPGRADE v3: Deep system upgrade with:
-- Semantic KeyPoint units (id, concept, claim, implication)
-- Hard constraint validation
-- Strict scoring with penalties
-- Diff-based versioning
+CLEAN DESIGN v4:
+- Minimal, purposeful schemas
+- Structured data passing via key point IDs
+- Actionable feedback (not scores)
+- Visible V1 → V2 improvements
 """
 
 from typing import List, Optional, Literal, Dict, Any
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============================================================================
-# SEMANTIC KEY POINT (NEW - Atomic reusable unit)
+# SUMMARIZER SCHEMAS (Minimal - core_message + key_points only)
 # ============================================================================
 
-class SemanticKeyPoint(BaseModel):
+class KeyPoint(BaseModel):
     """
-    Semantic unit of meaning - atomic, reusable across formats.
-    Clean structure: id, concept, claim, implication, importance, type
+    Atomic unit of meaning - complete insight with reasoning.
     """
     id: str = Field(description="Unique identifier (e.g., 'kp_1', 'kp_2')")
-    concept: str = Field(description="The core concept/topic (2-5 words)")
-    claim: str = Field(description="The main assertion about this concept")
-    implication: str = Field(description="Why this matters / the takeaway")
-    importance: Literal["critical", "high", "medium"] = Field(
-        default="high",
-        description="How central this point is to the message"
-    )
-    type: Literal["insight", "data_point", "strategy", "observation"] = Field(
-        default="insight",
-        description="Type of key point"
-    )
-
-
-class KeyPointRelationship(BaseModel):
-    """Relationship between two key points - shows how ideas connect."""
-    from_id: str = Field(description="Source key point ID (e.g., 'kp_1')")
-    to_id: str = Field(description="Target key point ID (e.g., 'kp_2')")
-    relationship_type: Literal["supports", "contrasts", "extends", "depends_on", "examples"] = Field(
-        description="Type of relationship"
-    )
-    explanation: Optional[str] = Field(
-        default=None,
-        description="Brief explanation of the relationship"
-    )
-
-
-class ContentDNA(BaseModel):
-    """
-    Simplified content DNA - just core_conflict and key_question.
-    """
-    core_conflict: Optional[str] = Field(
-        default=None,
-        description="The central tension or conflict being addressed"
-    )
-    key_question: Optional[str] = Field(
-        default=None,
-        description="The central question the content answers"
-    )
-
-
-class ExtractionTrace(BaseModel):
-    """Traces a key point back to its source - proves no hallucination."""
-    key_point_id: str = Field(description="The key point ID this trace is for")
-    source_sentence: str = Field(description="The original sentence from the content")
-    extraction_confidence: Literal["high", "medium", "low"] = Field(
-        default="high",
-        description="Confidence in this extraction"
-    )
-
-
-class SummaryQuality(BaseModel):
-    """Simple quality assessment - just score and reason."""
-    score: float = Field(
-        default=7.0,
-        ge=0.0, le=10.0,
-        description="Overall quality score (0-10)"
-    )
+    label: str = Field(description="Complete insight sentence with cause-effect")
     reason: Optional[str] = Field(
         default=None,
-        description="Brief explanation of the score"
+        description="Why this insight matters or mechanism behind it"
     )
-
-
-class ExtractionAttempt(BaseModel):
-    """Record of an extraction attempt for retry visibility."""
-    attempt_number: int
-    key_points_count: int
-    quality_score: Optional[float] = None
-    success: bool
-    failure_reason: Optional[str] = None
-
-
-# ============================================================================
-# SUMMARIZER OUTPUT SCHEMAS (Content DNA Extraction)
-# ============================================================================
-
-class KeyInsight(BaseModel):
-    """A single key insight extracted from the source content."""
-    id: str = Field(description="Unique identifier for traceability (e.g., 'insight_1')")
-    topic: str = Field(description="Brief topic label")
-    insight: str = Field(description="The core insight or takeaway")
-    importance: Literal["critical", "high", "medium", "low"] = Field(description="Priority level")
+    priority: Literal["critical", "high", "medium"] = Field(
+        description="How central this point is"
+    )
+    type: Literal["insight", "strategy", "data"] = Field(
+        description="Type of key point"
+    )
+    data: Optional[str] = Field(
+        default=None,
+        description="Optional metric or fact (e.g., '40% increase') - integrate into label if present"
+    )
 
 
 class SummaryOutput(BaseModel):
     """
-    Output from the SummarizerAgent - Clean, minimal structure.
-    
-    Fields: title, one_liner, intent, tone, structure, content_dna, 
-            target_audience, key_points, summary_quality
+    Output from SummarizerAgent - HIGH-QUALITY INSIGHTS ONLY.
+    Only core_message + key_points (5-6 max).
     """
-    # Core identification
-    title: str = Field(description="Generated title for the content")
-    one_liner: str = Field(description="Single sentence summary (hook-worthy)")
-    
-    # Content DNA (basic)
-    intent: Literal["educational", "persuasive", "informational", "inspirational", "analytical"] = Field(
-        default="informational",
-        description="Primary intent of the content"
+    core_message: str = Field(description="Sharp, conflict-based thesis (1-2 sentences)")
+    key_points: List[KeyPoint] = Field(
+        description="5-6 high-quality insights with complete sentences"
     )
-    tone: Literal["informative", "analytical", "storytelling", "conversational", "formal", "provocative"] = Field(
-        default="informative",
-        description="Dominant tone of the content"
-    )
-    structure: Literal["problem-solution", "narrative", "listicle", "how-to", "case-study", "opinion", "research"] = Field(
-        default="narrative",
-        description="Content structure pattern"
-    )
-    
-    # Deep Content DNA (simplified: core_conflict + key_question only)
-    content_dna: Optional[ContentDNA] = Field(
-        default=None,
-        description="Content DNA: core_conflict and key_question"
-    )
-    
-    # Target audience
-    target_audience: str = Field(description="Who would benefit from this content")
-    
-    # Semantic key points (structured units)
-    key_points: List[SemanticKeyPoint] = Field(
-        description="Semantic units: id, concept, claim, implication, importance, type"
-    )
-    
-    # Quality assessment (score + reason only)
-    summary_quality: Optional[SummaryQuality] = Field(
-        default=None,
-        description="Quality assessment: score and reason"
-    )
-    
-    # Internal fields (not exposed in clean output but kept for compatibility)
-    core_message: str = Field(default="", exclude=True, description="The central thesis")
-    main_theme: str = Field(default="", exclude=True, description="The overarching theme")
-    word_count_original: int = Field(default=0, exclude=True, description="Original content word count")
-    key_insights: List[KeyInsight] = Field(default_factory=list, exclude=True, description="Legacy field")
     
     @field_validator('key_points')
     @classmethod
-    def validate_minimum_key_points(cls, v: List[SemanticKeyPoint]) -> List[SemanticKeyPoint]:
-        """Validate minimum key points."""
+    def validate_key_points(cls, v: List[KeyPoint]) -> List[KeyPoint]:
         if len(v) < 3:
             raise ValueError(f"At least 3 key_points required, got {len(v)}")
+        if len(v) > 6:
+            raise ValueError(f"Maximum 6 key_points allowed, got {len(v)}")
         return v
     
-    def get_key_point_by_id(self, kp_id: str) -> Optional[SemanticKeyPoint]:
-        """Helper to get a key point by ID."""
-        for kp in self.key_points:
-            if kp.id == kp_id:
-                return kp
-        return None
+    def get_critical_kps(self) -> List[KeyPoint]:
+        """Get critical priority key points."""
+        return [kp for kp in self.key_points if kp.priority == "critical"]
     
-    def get_key_point_ids(self) -> List[str]:
+    def get_kp_ids(self) -> List[str]:
         """Get all key point IDs."""
         return [kp.id for kp in self.key_points]
 
 
 # ============================================================================
-# FORMATTER OUTPUT SCHEMAS (Platform-Aware, Traceable)
+# FORMATTER SCHEMAS (Platform outputs with used_kps tracking)
 # ============================================================================
 
-class DerivedContent(BaseModel):
-    """Content with traceability to source key_points."""
-    content: str = Field(description="The actual content")
-    derived_from: List[str] = Field(
-        description="Source key_points (e.g., ['key_points[0]', 'key_points[2]'])"
+class LinkedInOutput(BaseModel):
+    """LinkedIn post - content + which KPs were used."""
+    content: str = Field(description="Full LinkedIn post (100-150 words)")
+    used_kps: List[str] = Field(
+        description="Key point IDs used (e.g., ['kp_1', 'kp_2'])"
     )
 
 
-class LinkedInPost(BaseModel):
-    """LinkedIn post format with traceability."""
-    hook: str = Field(description="Attention-grabbing opening line")
-    body: str = Field(description="Main content body")
-    call_to_action: str = Field(description="Closing CTA")
-    hashtags: List[str] = Field(description="Relevant hashtags (3-5)")
-    source_insights: List[str] = Field(
-        default_factory=list,
-        description="IDs of insights this post covers"
-    )
-    derived_from: List[str] = Field(
-        default_factory=list,
-        description="key_points indices used (e.g., ['key_points[0]', 'key_points[1]'])"
-    )
-
-
-class TweetMapping(BaseModel):
-    """Maps a tweet to its source key points."""
-    tweet_index: int = Field(description="Index of the tweet (0-based)")
-    derived_from: List[str] = Field(
-        description="List of key_point indices (e.g., ['key_points[0]', 'key_points[2]'])"
-    )
-
-
-class TweetWithTraceability(BaseModel):
-    """A single tweet with traceability."""
-    tweet: str = Field(description="Tweet content (max 280 chars)")
-    derived_from: List[str] = Field(
-        default_factory=list,
-        description="key_points this tweet is derived from"
+class TwitterOutput(BaseModel):
+    """Twitter thread - tweets + which KPs were used."""
+    tweets: List[str] = Field(description="List of tweets (max 7, each ≤240 chars)")
+    used_kps: List[str] = Field(
+        description="Key point IDs used (e.g., ['kp_1', 'kp_2', 'kp_3'])"
     )
     
-    @field_validator('tweet')
+    @field_validator('tweets')
     @classmethod
-    def validate_tweet_length(cls, v: str) -> str:
-        if len(v) > 280:
-            raise ValueError(f"Tweet exceeds 280 characters ({len(v)} chars)")
+    def validate_tweets(cls, v: List[str]) -> List[str]:
+        # Auto-truncate to max 7 tweets instead of raising error
+        if len(v) > 7:
+            v = v[:7]
+        
+        # Check individual tweet lengths
+        for i, tweet in enumerate(v):
+            if len(tweet) > 280:
+                # Truncate long tweets
+                truncated = tweet[:237]
+                last_space = truncated.rfind(' ')
+                if last_space > 200:
+                    truncated = truncated[:last_space]
+                v[i] = truncated + "..."
+        
         return v
 
 
-class TwitterThread(BaseModel):
-    """Twitter/X thread format with validation and traceability."""
-    tweets: List[str] = Field(description="List of tweets (each max 280 chars)")
-    thread_hook: str = Field(description="First tweet hook to grab attention")
-    source_insights: List[str] = Field(
-        default_factory=list,
-        description="IDs of insights this thread covers"
-    )
-    tweet_mappings: List[TweetMapping] = Field(
-        default_factory=list,
-        description="Maps each tweet to source key_points"
-    )
-    derived_from: List[str] = Field(
-        default_factory=list,
-        description="All key_points used across the thread"
-    )
-
-    @field_validator('tweets')
-    @classmethod
-    def validate_tweet_length(cls, tweets: List[str]) -> List[str]:
-        for i, tweet in enumerate(tweets):
-            if len(tweet) > 280:
-                raise ValueError(f"Tweet {i+1} exceeds 280 characters ({len(tweet)} chars)")
-        return tweets
-
-
-class NewsletterSectionContent(BaseModel):
-    """A newsletter section with traceability."""
-    content: str = Field(description="Section content")
-    derived_from: List[str] = Field(
-        default_factory=list,
-        description="key_points this section covers"
-    )
-
-
-class NewsletterSection(BaseModel):
-    """Newsletter format with enhanced traceability."""
-    subject_line: str = Field(description="Email subject line (6-10 words)")
-    preview_text: str = Field(description="Email preview snippet")
-    intro: str = Field(description="Opening paragraph")
-    body_sections: List[str] = Field(description="Main content sections")
-    sections_with_traceability: List[NewsletterSectionContent] = Field(
-        default_factory=list,
-        description="Body sections with key_point traceability"
-    )
-    closing: str = Field(description="Closing paragraph with CTA")
-    source_insights: List[str] = Field(
-        default_factory=list,
-        description="IDs of insights this newsletter covers"
-    )
-    derived_from: List[str] = Field(
-        default_factory=list,
-        description="All key_points used in the newsletter"
+class NewsletterOutput(BaseModel):
+    """Newsletter - content + which KPs were used."""
+    content: str = Field(description="Full newsletter (120-200 words)")
+    used_kps: List[str] = Field(
+        description="Key point IDs used (e.g., ['kp_1', 'kp_2', 'kp_3', 'kp_4'])"
     )
 
 
 class FormattedOutput(BaseModel):
-    """Output from the FormatterAgent - Version 1 content."""
-    version: int = Field(default=1, description="Content version number")
-    linkedin: LinkedInPost = Field(description="LinkedIn post format")
-    twitter: TwitterThread = Field(description="Twitter thread format")
-    newsletter: NewsletterSection = Field(description="Newsletter format")
+    """Output from FormatterAgent - V1 content for all platforms."""
+    version: int = Field(default=1, description="Content version")
+    linkedin: LinkedInOutput = Field(description="LinkedIn post")
+    twitter: TwitterOutput = Field(description="Twitter thread")
+    newsletter: NewsletterOutput = Field(description="Newsletter")
+    
+    def get_all_used_kps(self) -> List[str]:
+        """Get all unique KP IDs used across platforms."""
+        all_kps = set(self.linkedin.used_kps + self.twitter.used_kps + self.newsletter.used_kps)
+        return list(all_kps)
 
 
 # ============================================================================
-# REVIEWER OUTPUT SCHEMAS (Multi-Dimensional, Platform-Aware)
+# REVIEWER SCHEMAS (Issues only - no scores)
 # ============================================================================
-
-class FormatReview(BaseModel):
-    """Review for a single content format."""
-    format_name: str = Field(description="Name of the format reviewed")
-    clarity_score: int = Field(ge=1, le=10, description="Clarity score 1-10")
-    engagement_score: int = Field(ge=1, le=10, description="Engagement potential 1-10")
-    missing_insights: List[str] = Field(description="IDs of key insights from summary not covered")
-    strengths: List[str] = Field(description="What works well")
-    weaknesses: List[str] = Field(description="Areas needing improvement")
-    specific_suggestions: List[str] = Field(description="Actionable improvement suggestions")
-
-
-class PlatformFitScores(BaseModel):
-    """Platform-specific fit scores."""
-    linkedin: float = Field(ge=0.0, le=1.0, description="LinkedIn platform fit (0-1)")
-    twitter: float = Field(ge=0.0, le=1.0, description="Twitter platform fit (0-1)")
-    newsletter: float = Field(ge=0.0, le=1.0, description="Newsletter platform fit (0-1)")
-
-
-class CoverageAnalysis(BaseModel):
-    """Analysis of key_point coverage across outputs."""
-    missing_key_points: List[str] = Field(
-        default_factory=list,
-        description="key_points not covered in any output (e.g., ['key_points[2]'])"
-    )
-    used_key_points: List[str] = Field(
-        default_factory=list,
-        description="key_points that were used (e.g., ['key_points[0]', 'key_points[1]'])"
-    )
-    coverage_by_format: Dict[str, List[str]] = Field(
-        default_factory=dict,
-        description="Which key_points are in each format"
-    )
-
-
-class ConstraintViolation(BaseModel):
-    """A platform constraint violation."""
-    type: Literal[
-        "twitter_length", 
-        "thread_size", 
-        "linkedin_length", 
-        "newsletter_sections",
-        "missing_hook",
-        "hashtag_count"
-    ] = Field(description="Type of violation")
-    message: str = Field(description="Description of the violation")
-    location: str = Field(description="Where the violation occurred")
-    severity: Literal["error", "warning"] = Field(default="error")
-
-
-class CrossFormatConsistency(BaseModel):
-    """Cross-format consistency analysis."""
-    missing_points: List[str] = Field(
-        default_factory=list,
-        description="Key points missing from one format but present in others"
-    )
-    contradictions: List[str] = Field(
-        default_factory=list,
-        description="Contradictory statements between formats"
-    )
-    tone_mismatch: List[str] = Field(
-        default_factory=list,
-        description="Tone inconsistencies between formats"
-    )
-    # Detailed per-format analysis
-    missing_in_linkedin: List[str] = Field(
-        default_factory=list,
-        description="Key point IDs missing from LinkedIn"
-    )
-    missing_in_twitter: List[str] = Field(
-        default_factory=list,
-        description="Key point IDs missing from Twitter"
-    )
-    missing_in_newsletter: List[str] = Field(
-        default_factory=list,
-        description="Key point IDs missing from Newsletter"
-    )
-
 
 class ReviewIssue(BaseModel):
-    """A specific issue identified by the reviewer."""
-    id: str = Field(description="Unique issue identifier (e.g., 'issue_1')")
-    type: Literal[
-        "missing_coverage", 
-        "clarity", 
-        "engagement", 
-        "length", 
-        "consistency", 
-        "platform_fit",
-        "constraint_violation",
-        "tone_mismatch"
-    ] = Field(description="Category of issue")
-    description: str = Field(description="What the issue is")
-    target: str = Field(
-        default="",
-        description="Specific target (e.g., 'twitter_thread[2]', 'linkedin_post')"
+    """
+    A specific, actionable issue found by reviewer.
+    """
+    issue_id: str = Field(description="Unique ID (e.g., 'issue_1')")
+    target: Literal["linkedin", "twitter", "newsletter"] = Field(
+        description="Which platform has the issue"
     )
-    affected_formats: List[Literal["linkedin", "twitter", "newsletter"]] = Field(
-        description="Which formats have this issue"
+    type: Literal["structure", "coverage", "constraint", "clarity"] = Field(
+        description="Category of issue"
     )
-    severity: Literal["critical", "high", "medium", "low"] = Field(description="How important to fix")
-    source_insight_id: Optional[str] = Field(default=None, description="Related insight ID if applicable")
-    related_key_point: Optional[str] = Field(
-        default=None, 
-        description="Related key_point (e.g., 'key_points[2]')"
+    problem: str = Field(description="What's wrong (e.g., 'Weak hook')")
+    reason: str = Field(
+        description="Why it's a problem (e.g., 'Does not create curiosity')"
     )
-
-
-class ReviewScores(BaseModel):
-    """All review scores in normalized format (0-1)."""
-    clarity: float = Field(ge=0.0, le=1.0, description="Overall clarity (0-1)")
-    engagement: float = Field(ge=0.0, le=1.0, description="Engagement potential (0-1)")
-    coverage: float = Field(ge=0.0, le=1.0, description="Key point coverage (0-1)")
-    consistency: float = Field(ge=0.0, le=1.0, description="Cross-format consistency (0-1)")
-    platform_fit: PlatformFitScores = Field(description="Per-platform fit scores")
+    suggestion: str = Field(
+        description="How to fix it (e.g., 'Use data-driven hook')"
+    )
+    priority: Literal["critical", "high", "medium", "low"] = Field(
+        description="How important to fix"
+    )
+    missing_kps: List[str] = Field(
+        default_factory=list,
+        description="Missing key point IDs (for coverage issues)"
+    )
 
 
 class ReviewOutput(BaseModel):
-    """Output from the ReviewerAgent - Enhanced multi-dimensional."""
-    # Normalized scores (0-1 scale) - NEW
-    scores: ReviewScores = Field(
-        default_factory=lambda: ReviewScores(
-            clarity=0.0, engagement=0.0, coverage=0.0, consistency=0.0,
-            platform_fit=PlatformFitScores(linkedin=0.0, twitter=0.0, newsletter=0.0)
-        ),
-        description="All scores in normalized 0-1 format"
-    )
-    
-    # Legacy scores (1-10 scale) - kept for backward compatibility
-    coverage_score: int = Field(ge=1, le=10, description="Are ALL summary key_points covered? 1-10")
-    clarity_score: int = Field(ge=1, le=10, description="Overall clarity across formats 1-10")
-    engagement_score: int = Field(ge=1, le=10, description="Overall engagement potential 1-10")
-    consistency_score: int = Field(ge=1, le=10, description="Consistency across formats 1-10")
-    overall_alignment_score: int = Field(ge=1, le=10, description="How well formats align with summary")
-    
-    # Coverage analysis - NEW
-    coverage_analysis: CoverageAnalysis = Field(
-        default_factory=CoverageAnalysis,
-        description="Detailed coverage analysis"
-    )
-    
-    # Constraint violations - NEW
-    violations: List[ConstraintViolation] = Field(
-        default_factory=list,
-        description="Platform constraint violations"
-    )
-    
-    # Cross-format consistency - NEW
-    cross_format_consistency: CrossFormatConsistency = Field(
-        default_factory=CrossFormatConsistency,
-        description="Cross-format consistency analysis"
-    )
-    
-    # Legacy fields
-    missing_points: List[str] = Field(
-        default_factory=list, 
-        description="Which key_points are missing and where"
-    )
-    
-    # Per-format reviews
-    linkedin_review: FormatReview = Field(description="LinkedIn post review")
-    twitter_review: FormatReview = Field(description="Twitter thread review")
-    newsletter_review: FormatReview = Field(description="Newsletter review")
-    
-    # Structured issues - enhanced
+    """
+    Output from ReviewerAgent - ISSUES ONLY.
+    No scores, just actionable feedback.
+    """
     issues: List[ReviewIssue] = Field(
-        default_factory=list, 
-        description="Structured issues with severity and traceability"
+        description="List of specific, actionable issues"
     )
-    critical_issues: List[str] = Field(description="Must-fix issues across all formats")
-    priority_improvements: List[str] = Field(description="Top 3-5 improvements to make")
+    
+    def get_critical_issues(self) -> List[ReviewIssue]:
+        """Get critical priority issues."""
+        return [i for i in self.issues if i.priority == "critical"]
+    
+    def get_issues_by_target(self, target: str) -> List[ReviewIssue]:
+        """Get issues for a specific platform."""
+        return [i for i in self.issues if i.target == target]
+    
+    def get_coverage_issues(self) -> List[ReviewIssue]:
+        """Get all coverage issues."""
+        return [i for i in self.issues if i.type == "coverage"]
 
 
 # ============================================================================
-# REFINER OUTPUT SCHEMAS (Targeted, Issue-Driven)
+# REFINER SCHEMAS (Changes + updated outputs)
 # ============================================================================
 
-class ChangeApplied(BaseModel):
-    """A specific change applied by the refiner - strictly targeted."""
-    issue_id: str = Field(description="ID of the issue this change addresses")
-    action: Literal["modify", "add", "remove", "restructure"] = Field(
-        description="Type of change action"
+class Change(BaseModel):
+    """A specific change made by refiner."""
+    issue_id: str = Field(description="Which issue this fixes")
+    action: Literal["rewrite", "add", "remove", "shorten", "restructure"] = Field(
+        description="Type of change"
     )
     target: str = Field(
-        description="Specific target (e.g., 'twitter_thread[2]', 'linkedin_hook')"
+        description="What was changed (e.g., 'linkedin_hook', 'tweet_3')"
     )
-    change_type: Literal[
-        "add_missing_key_point",
-        "fix_constraint_violation",
-        "improve_clarity",
-        "improve_engagement",
-        "fix_consistency",
-        "fix_tone"
-    ] = Field(description="Category of change")
-    related_key_point: Optional[str] = Field(
-        default=None,
-        description="key_point reference (e.g., 'key_points[2]')"
-    )
-    before: Optional[str] = Field(default=None, description="Content before change")
-    after: Optional[str] = Field(default=None, description="Content after change")
-
-
-class ChangeRecord(BaseModel):
-    """A specific change made by the refiner - legacy format."""
-    issue_id: str = Field(description="ID of the issue this change addresses")
-    action: Literal["added", "modified", "removed", "restructured"] = Field(description="Type of change")
-    location: Literal[
-        "linkedin_hook", "linkedin_body", "linkedin_cta", 
-        "twitter_thread", "twitter_tweet",
-        "newsletter_intro", "newsletter_body", "newsletter_closing",
-        "newsletter_subject"
-    ] = Field(description="Where the change was made")
-    description: str = Field(description="What was changed")
-    source_insight_id: Optional[str] = Field(default=None, description="Insight ID that motivated this change")
+    before: str = Field(description="Content before change")
+    after: str = Field(description="Content after change")
+    
+    @field_validator('before', 'after', mode='before')
+    @classmethod
+    def convert_list_to_string(cls, v):
+        """Convert lists to pipe-separated strings (for Twitter thread changes)."""
+        if isinstance(v, list):
+            return " | ".join(str(item) for item in v)
+        return v
 
 
 class RefinedOutput(BaseModel):
-    """Output from the RefinerAgent - Targeted fixes only."""
-    version: int = Field(default=2, description="Content version number")
-    linkedin: LinkedInPost = Field(description="Refined LinkedIn post")
-    twitter: TwitterThread = Field(description="Refined Twitter thread")
-    newsletter: NewsletterSection = Field(description="Refined newsletter")
-    
-    # Enhanced change tracking - NEW
-    changes_applied: List[ChangeApplied] = Field(
-        default_factory=list,
-        description="Structured changes with issue references"
+    """
+    Output from RefinerAgent - V2 with visible changes.
+    """
+    version: int = Field(default=2, description="Content version")
+    changes: List[Change] = Field(
+        description="List of changes made with before/after"
     )
-    
-    # Legacy change tracking
-    change_records: List[ChangeRecord] = Field(
-        default_factory=list, 
-        description="Structured change tracking"
-    )
-    changes_made: List[str] = Field(description="Summary of improvements made")
-    addressed_issues: List[str] = Field(description="Which review issue IDs were addressed")
+    linkedin: LinkedInOutput = Field(description="Refined LinkedIn post")
+    twitter: TwitterOutput = Field(description="Refined Twitter thread")
+    newsletter: NewsletterOutput = Field(description="Refined newsletter")
 
 
 # ============================================================================
-# PIPELINE & VERSIONING SCHEMAS
+# PIPELINE SCHEMAS
 # ============================================================================
-
-class VersionEntry(BaseModel):
-    """A single version in the version history."""
-    version: str = Field(description="Version identifier (e.g., 'v1', 'v2')")
-    content: Dict[str, Any] = Field(description="The formatted content at this version")
-    score: float = Field(description="Composite score for this version (0-1)")
-    changes: List[str] = Field(
-        default_factory=list,
-        description="Changes made from previous version"
-    )
-    parent: Optional[str] = Field(
-        default=None,
-        description="Parent version identifier"
-    )
-    timestamp: Optional[str] = Field(default=None, description="When this version was created")
-
-
-class VersionHistory(BaseModel):
-    """Complete version history for the pipeline output."""
-    versions: List[VersionEntry] = Field(
-        default_factory=list,
-        description="All versions in order"
-    )
-    current_version: str = Field(default="v1", description="Current/final version")
-
 
 class IterationResult(BaseModel):
     """Result of a single review-refine iteration."""
-    iteration: int = Field(description="Iteration number (1, 2, ...)")
-    review: ReviewOutput = Field(description="Review from this iteration")
-    refined: Optional[RefinedOutput] = Field(default=None, description="Refined output if refinement was done")
-    score: float = Field(description="Composite score for this iteration (0-1 normalized)")
+    iteration: int = Field(description="Iteration number")
+    review: ReviewOutput = Field(description="Review output")
+    refined: Optional[RefinedOutput] = Field(
+        default=None, 
+        description="Refined output"
+    )
+    issues_fixed: int = Field(default=0, description="Number of issues fixed")
 
 
 class PipelineResult(BaseModel):
     """Final output from the complete pipeline."""
-    input_summary: SummaryOutput = Field(description="Summary of original content (Content DNA)")
-    version_1: FormattedOutput = Field(description="Initial formatted content")
-    review: ReviewOutput = Field(description="Final review feedback")
-    version_2: RefinedOutput = Field(description="Final refined content")
+    summary: SummaryOutput = Field(description="Extracted key points")
+    v1: FormattedOutput = Field(description="Initial formatted content")
+    review: ReviewOutput = Field(description="Review feedback")
+    v2: RefinedOutput = Field(description="Final refined content")
     iterations: List[IterationResult] = Field(
-        default_factory=list, 
-        description="History of review-refine iterations"
+        default_factory=list,
+        description="Review-refine iterations"
     )
-    final_score: float = Field(default=0.0, description="Final composite quality score (0-1)")
-    
-    # Enhanced versioning - NEW
-    version_history: VersionHistory = Field(
-        default_factory=VersionHistory,
-        description="Complete version history with diffs"
-    )
-    
-    # Metadata
-    total_iterations: int = Field(default=0, description="Total iterations performed")
-    threshold_met: bool = Field(default=False, description="Whether quality threshold was met")
+    total_issues: int = Field(default=0, description="Total issues found")
+    issues_fixed: int = Field(default=0, description="Issues fixed")
 
 
-# Initialize package
+# ============================================================================
+# BACKWARD COMPATIBILITY (Legacy schemas - will be deprecated)
+# ============================================================================
+
+# Legacy KeyPoint format
+class SemanticKeyPoint(BaseModel):
+    """Legacy: Semantic key point - use KeyPoint instead."""
+    id: str = Field(description="Unique identifier")
+    concept: str = Field(default="", description="Core concept")
+    claim: str = Field(default="", description="Main assertion")
+    implication: str = Field(default="", description="Why it matters")
+    importance: Literal["critical", "high", "medium"] = Field(default="high")
+    type: Literal["insight", "data_point", "strategy", "observation"] = Field(default="insight")
+
+
+# Legacy LinkedIn format
+class LinkedInPost(BaseModel):
+    """Legacy: LinkedIn post - use LinkedInOutput instead."""
+    hook: str = Field(default="", description="Opening line")
+    body: str = Field(default="", description="Main content")
+    call_to_action: str = Field(default="", description="CTA")
+    hashtags: List[str] = Field(default_factory=list)
+    source_insights: List[str] = Field(default_factory=list)
+    derived_from: List[str] = Field(default_factory=list)
+
+
+# Legacy Twitter format
+class TweetMapping(BaseModel):
+    """Legacy: Tweet mapping."""
+    tweet_index: int = Field(default=0)
+    derived_from: List[str] = Field(default_factory=list)
+
+
+class TwitterThread(BaseModel):
+    """Legacy: Twitter thread - use TwitterOutput instead."""
+    tweets: List[str] = Field(default_factory=list)
+    thread_hook: str = Field(default="")
+    source_insights: List[str] = Field(default_factory=list)
+    tweet_mappings: List[TweetMapping] = Field(default_factory=list)
+    derived_from: List[str] = Field(default_factory=list)
+
+
+# Legacy Newsletter format
+class NewsletterSection(BaseModel):
+    """Legacy: Newsletter - use NewsletterOutput instead."""
+    subject_line: str = Field(default="")
+    preview_text: str = Field(default="")
+    intro: str = Field(default="")
+    body_sections: List[str] = Field(default_factory=list)
+    sections_with_traceability: List[Any] = Field(default_factory=list)
+    closing: str = Field(default="")
+    source_insights: List[str] = Field(default_factory=list)
+    derived_from: List[str] = Field(default_factory=list)
+
+
+# ============================================================================
+# LEGACY SCHEMAS FOR BACKWARD COMPATIBILITY (will be deprecated)
+# ============================================================================
+
+# Legacy Review schemas (used by old orchestrator)
+class FormatReview(BaseModel):
+    """Legacy: Format review - use ReviewOutput.issues instead."""
+    format_name: str = Field(default="")
+    clarity_score: int = Field(default=8, ge=1, le=10)
+    engagement_score: int = Field(default=8, ge=1, le=10)
+    missing_insights: List[str] = Field(default_factory=list)
+    strengths: List[str] = Field(default_factory=list)
+    weaknesses: List[str] = Field(default_factory=list)
+    specific_suggestions: List[str] = Field(default_factory=list)
+
+
+class PlatformFitScores(BaseModel):
+    """Legacy: Platform fit scores."""
+    linkedin: float = Field(default=0.8, ge=0.0, le=1.0)
+    twitter: float = Field(default=0.8, ge=0.0, le=1.0)
+    newsletter: float = Field(default=0.8, ge=0.0, le=1.0)
+
+
+class CoverageAnalysis(BaseModel):
+    """Legacy: Coverage analysis."""
+    missing_key_points: List[str] = Field(default_factory=list)
+    used_key_points: List[str] = Field(default_factory=list)
+    coverage_by_format: Dict[str, List[str]] = Field(default_factory=dict)
+
+
+class ConstraintViolation(BaseModel):
+    """Legacy: Constraint violation."""
+    type: str = Field(default="")
+    message: str = Field(default="")
+    location: str = Field(default="")
+    severity: str = Field(default="warning")
+
+
+class CrossFormatConsistency(BaseModel):
+    """Legacy: Cross-format consistency."""
+    missing_points: List[str] = Field(default_factory=list)
+    contradictions: List[str] = Field(default_factory=list)
+    tone_mismatch: List[str] = Field(default_factory=list)
+    missing_in_linkedin: List[str] = Field(default_factory=list)
+    missing_in_twitter: List[str] = Field(default_factory=list)
+    missing_in_newsletter: List[str] = Field(default_factory=list)
+
+
+class ReviewScores(BaseModel):
+    """Legacy: Review scores."""
+    clarity: float = Field(default=0.8, ge=0.0, le=1.0)
+    engagement: float = Field(default=0.8, ge=0.0, le=1.0)
+    coverage: float = Field(default=0.8, ge=0.0, le=1.0)
+    consistency: float = Field(default=0.8, ge=0.0, le=1.0)
+    platform_fit: PlatformFitScores = Field(default_factory=PlatformFitScores)
+
+
+# Legacy ReviewIssue (different from new ReviewIssue)
+class LegacyReviewIssue(BaseModel):
+    """Legacy: Review issue format."""
+    id: str = Field(default="")
+    type: str = Field(default="")
+    description: str = Field(default="")
+    target: str = Field(default="")
+    affected_formats: List[str] = Field(default_factory=list)
+    severity: str = Field(default="medium")
+    source_insight_id: Optional[str] = None
+    related_key_point: Optional[str] = None
+
+
+# Legacy ReviewOutput (used by old agents)
+class LegacyReviewOutput(BaseModel):
+    """Legacy: Full review output - use ReviewOutput instead."""
+    scores: ReviewScores = Field(default_factory=ReviewScores)
+    coverage_score: int = Field(default=8, ge=1, le=10)
+    clarity_score: int = Field(default=8, ge=1, le=10)
+    engagement_score: int = Field(default=8, ge=1, le=10)
+    consistency_score: int = Field(default=8, ge=1, le=10)
+    overall_alignment_score: int = Field(default=8, ge=1, le=10)
+    coverage_analysis: CoverageAnalysis = Field(default_factory=CoverageAnalysis)
+    violations: List[ConstraintViolation] = Field(default_factory=list)
+    cross_format_consistency: CrossFormatConsistency = Field(default_factory=CrossFormatConsistency)
+    missing_points: List[str] = Field(default_factory=list)
+    linkedin_review: FormatReview = Field(default_factory=FormatReview)
+    twitter_review: FormatReview = Field(default_factory=FormatReview)
+    newsletter_review: FormatReview = Field(default_factory=FormatReview)
+    issues: List[LegacyReviewIssue] = Field(default_factory=list)
+    critical_issues: List[str] = Field(default_factory=list)
+    priority_improvements: List[str] = Field(default_factory=list)
+
+
+# Legacy Refiner schemas
+class ChangeApplied(BaseModel):
+    """Legacy: Change applied."""
+    issue_id: str = Field(default="")
+    action: str = Field(default="modify")
+    target: str = Field(default="")
+    change_type: str = Field(default="")
+    related_key_point: Optional[str] = None
+    before: Optional[str] = None
+    after: Optional[str] = None
+
+
+class ChangeRecord(BaseModel):
+    """Legacy: Change record."""
+    issue_id: str = Field(default="")
+    action: str = Field(default="modified")
+    location: str = Field(default="")
+    description: str = Field(default="")
+    source_insight_id: Optional[str] = None
+
+
+class LegacyRefinedOutput(BaseModel):
+    """Legacy: Refined output - use RefinedOutput instead."""
+    version: int = Field(default=2)
+    linkedin: LinkedInPost = Field(default_factory=LinkedInPost)
+    twitter: TwitterThread = Field(default_factory=TwitterThread)
+    newsletter: NewsletterSection = Field(default_factory=NewsletterSection)
+    changes_applied: List[ChangeApplied] = Field(default_factory=list)
+    change_records: List[ChangeRecord] = Field(default_factory=list)
+    changes_made: List[str] = Field(default_factory=list)
+    addressed_issues: List[str] = Field(default_factory=list)
+
+
+# Legacy Pipeline schemas
+class VersionEntry(BaseModel):
+    """Legacy: Version entry."""
+    version: str = Field(default="v1")
+    content: Dict[str, Any] = Field(default_factory=dict)
+    score: float = Field(default=0.0)
+    changes: List[str] = Field(default_factory=list)
+    parent: Optional[str] = None
+    timestamp: Optional[str] = None
+
+
+class VersionHistory(BaseModel):
+    """Legacy: Version history."""
+    versions: List[VersionEntry] = Field(default_factory=list)
+    current_version: str = Field(default="v1")
+
+
+class LegacyIterationResult(BaseModel):
+    """Legacy: Iteration result."""
+    iteration: int = Field(default=1)
+    review: LegacyReviewOutput = Field(default_factory=LegacyReviewOutput)
+    refined: Optional[LegacyRefinedOutput] = None
+    score: float = Field(default=0.0)
+
+
+class LegacyPipelineResult(BaseModel):
+    """Legacy: Pipeline result - use PipelineResult instead."""
+    input_summary: Any = Field(default=None)
+    version_1: Any = Field(default=None)
+    review: LegacyReviewOutput = Field(default_factory=LegacyReviewOutput)
+    version_2: LegacyRefinedOutput = Field(default_factory=LegacyRefinedOutput)
+    iterations: List[LegacyIterationResult] = Field(default_factory=list)
+    final_score: float = Field(default=0.0)
+    version_history: VersionHistory = Field(default_factory=VersionHistory)
+    total_iterations: int = Field(default=0)
+    threshold_met: bool = Field(default=False)
+
+
+# ============================================================================
+# EXPORTS
+# ============================================================================
+
 __all__ = [
-    # Semantic Key Point (NEW)
-    "SemanticKeyPoint",
-    # Summary
-    "KeyInsight",
+    # NEW SCHEMAS (use these)
+    "KeyPoint",
     "SummaryOutput",
-    # Formatter
-    "DerivedContent",
+    "LinkedInOutput",
+    "TwitterOutput",
+    "NewsletterOutput",
+    "FormattedOutput",
+    "ReviewIssue",
+    "ReviewOutput",
+    "Change",
+    "RefinedOutput",
+    "IterationResult",
+    "PipelineResult",
+    
+    # Legacy (backward compatibility)
+    "SemanticKeyPoint",
     "LinkedInPost",
     "TweetMapping",
-    "TweetWithTraceability",
     "TwitterThread",
-    "NewsletterSectionContent",
     "NewsletterSection",
-    "FormattedOutput",
-    # Reviewer
     "FormatReview",
     "PlatformFitScores",
     "CoverageAnalysis",
     "ConstraintViolation",
     "CrossFormatConsistency",
-    "ReviewIssue",
     "ReviewScores",
-    "ReviewOutput",
-    # Refiner
+    "LegacyReviewIssue",
+    "LegacyReviewOutput",
     "ChangeApplied",
     "ChangeRecord",
-    "RefinedOutput",
-    # Pipeline
+    "LegacyRefinedOutput",
     "VersionEntry",
     "VersionHistory",
-    "IterationResult",
-    "PipelineResult",
+    "LegacyIterationResult",
+    "LegacyPipelineResult",
 ]

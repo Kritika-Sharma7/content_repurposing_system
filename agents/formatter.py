@@ -1,363 +1,521 @@
 """
-FormatterAgent: Transforms summary into multiple platform-specific content formats.
-Creates LinkedIn posts, Twitter threads, and newsletter content.
+FormatterAgent: Transforms key_points into platform-specific content.
 
-UPGRADE v2: Platform-Aware, Constraint-Driven, Traceable
-- Consumes platform_config for constraints
-- Maps each piece of content to source key_points (derived_from)
-- Enforces platform constraints (tweet length ≤280, thread 5-8)
-
-UPGRADE v3: Semantic Key Points, Hard Validation
-- Uses SemanticKeyPoint.id for traceability (e.g., "kp_1", "kp_2")
-- Hard constraint validation after generation
-- Platform-native content transformation
+CLEAN DESIGN v5:
+- Input: core_message + key_points
+- DECISION STEP: Select best KPs (critical[:2] + high[:2]) - NOT all, NOT random
+- Output per platform: content + used_kps[]
+- Constraints: LinkedIn 100-150 words, Twitter max 7 tweets @ 240 chars, Newsletter 120-200 words
+- Product-level output quality
 """
 
-from typing import Optional, List
-from schemas.schemas import SummaryOutput, FormattedOutput, SemanticKeyPoint
-from utils.llm import LLMClient, get_llm_client
-from config.platform_config import (
-    PlatformConfig, DEFAULT_PLATFORM_CONFIG,
-    validate_twitter_thread, validate_linkedin_post, validate_newsletter
+from typing import Optional, List, Tuple
+from schemas.schemas import (
+    SummaryOutput, FormattedOutput, KeyPoint,
+    LinkedInOutput, TwitterOutput, NewsletterOutput
 )
+from utils.llm import LLMClient, get_llm_client
 from config.user_preferences import UserPreferences, DEFAULT_USER_PREFERENCES
 
 
-FORMATTER_SYSTEM_PROMPT = """You are an expert content creator specializing in multi-format content repurposing. Your job is to transform structured summaries into engaging, platform-optimized content with FULL TRACEABILITY.
+FORMATTER_SYSTEM_PROMPT = """You are a senior content strategist who writes like a real person sharing real observations.
 
-## CRITICAL: TRACEABILITY TO SEMANTIC KEY POINTS
+You convert source insights into NARRATIVE content that feels like lived experience.
 
-EVERY piece of content MUST trace back to specific key_points using their IDs (e.g., "kp_1", "kp_2").
+---
 
-### LinkedIn Post
-- derived_from: List key_point IDs covered (e.g., ["kp_1", "kp_2", "kp_4"])
-- source_insights: List insight IDs covered
+## CRITICAL MINDSET SHIFT
 
-### Twitter Thread
-- tweet_mappings: REQUIRED - Map each tweet to its source:
-  [{"tweet_index": 0, "derived_from": ["kp_1"]}, {"tweet_index": 1, "derived_from": ["kp_2", "kp_3"]}]
-- derived_from: All key_point IDs used in the thread
-- source_insights: All insight IDs covered
+❌ OLD WAY: "Take insights → present them clearly"
+✅ NEW WAY: "Take insights → interpret them → express as lived experience"
 
-### Newsletter
-- sections_with_traceability: Each section maps to key_point IDs
-- derived_from: All key_point IDs used
+You are NOT listing facts.
+You are TELLING A STORY about what works and why.
 
-## GROUNDING RULES
-- Use ONLY ideas/examples from the summary - do NOT invent "Company X", "Startup Y"
-- Every tweet/paragraph should trace back to a specific key_point ID
-- If the source has specific numbers/stats, use them exactly
+---
 
-## PLATFORM CONSTRAINTS (MUST FOLLOW - HARD VALIDATED)
+## LINKEDIN POST (100-150 words)
 
-### LinkedIn
-- Hook: Strong opening that grabs attention (REQUIRED)
-- Body: 2-4 paragraphs covering 3+ key_points
-- CTA: End with an engaging question (REQUIRED)
-- Hashtags: 3-5 relevant hashtags
+### STYLE: PERSONAL NARRATIVE (First-Person)
 
-### Twitter/X
-- Thread: 5-8 tweets EXACTLY
-- EACH TWEET: Maximum 280 characters (STRICTLY VALIDATED)
-- Each tweet should map to 1-2 key_points
-- First tweet must be a strong hook
+Write as if sharing a real experience with a colleague.
+Use short punchy sentences. Let line breaks create rhythm.
+Use en-dash (–) bullets sparingly for key changes (2-4 items max).
 
-### Newsletter
-- Subject line: 6-10 words, compelling
-- Preview text: Enticing snippet
-- Body: 3-5 sections covering all key_points
-- Scannable format with clear structure
+### STRUCTURE:
+1. SITUATION - What people usually do / common mistake
+2. PROBLEM - Why it fails
+3. SHIFT - What changed / what's different
+4. INSIGHT - Why it actually works (cause-effect)
+5. TAKEAWAY - Clear conclusion
+6. CTA - Optional question
 
-## COVERAGE REQUIREMENT
-ALL key_points must appear in at least one format. Missing coverage = failure."""
+### HOOK TYPES (choose one):
+- experience-based: "We tried X. It didn't work." (PREFERRED)
+- realization-based: "I used to think X. Then I noticed..."
+- mistake-based: "Most teams get this wrong..."
+
+### INSIGHT RULE (VERY IMPORTANT):
+Every idea must include WHAT + WHY (cause-effect).
+
+❌ Bad: "Async-first reduces meetings"
+✅ Good: "Async-first reduces meetings because decisions move to written form instead of calls"
+
+### ANTI-GENERIC FILTER:
+NEVER use these phrases:
+- "Here's how..."
+- "Here's what works..."
+- "Unlock..."
+- "Transform your..."
+- "The best teams..."
+- "Game-changer"
+- "In today's world"
+
+### EXPERIENCE SIMULATION:
+Frame insights as if learned from experience:
+- "We tried..."
+- "Most teams..."
+- "The mistake is..."
+- "What changed was..."
+- "The shift happened when..."
+
+Do NOT invent fake companies or fake data.
+Just simulate perspective.
+
+### ❌ BAD LINKEDIN (too abstract, not personal):
+```
+Most remote teams fail because they try to recreate the office online.
+
+Daily standups. Constant Slack. Video calls for everything.
+
+The shift happened when we stopped synchronizing and started documenting.
+
+Decisions moved to writing. Meetings dropped by 60%.
+
+The real unlock wasn't remote work. It was async work.
+
+What's one sync habit you'd cut if you could?
+
+#RemoteWork #AsyncWork
+```
+Why it's bad: Starts with generic observation, no personal story, uses hashtags, feels like thought-leadership content instead of real experience.
+
+### ✅ GOOD LINKEDIN (narrative):
+```
+We tried to run our remote team like an office.
+
+Same hours. Same meetings. Same expectations.
+
+It didn't work.
+
+People were always "busy" — but very little actual work was getting done.
+
+The shift happened when we stopped optimizing for availability and started optimizing for focus.
+
+A few changes made a huge difference:
+
+– Fewer meetings, more written communication
+– Clear documentation so decisions didn't need to be repeated
+– Measuring output instead of time online
+
+Suddenly, people had uninterrupted time to actually think.
+
+That's when productivity improved — not because people worked more,
+but because they were interrupted less.
+
+Remote work doesn't fail because of distance.
+
+It fails when we try to copy the office.
+
+Curious — what's been the hardest shift for your team?
+```
+
+### KEY STYLE PRINCIPLES:
+1. Start with first-person: "We tried...", "I noticed...", "Our team..."
+2. Use short, punchy sentences on their own lines for emphasis
+3. Create emotional rhythm: setup → problem → failed attempt → shift → insight
+4. When listing changes, use en-dash bullets (–) sparingly, 2-4 items max
+5. End with a reflective question (NOT a call-to-action pitch)
+6. NO hashtags — they break the narrative flow
+7. Aim for conversational vulnerability, not polished thought-leadership
+
+### CRITICAL QUALITY RULES:
+
+**SPECIFICITY RULE:**
+If input contains concrete numbers, experiments, or results → Use at least one of them.
+Avoid writing only abstract insights.
+Example: ❌ "Productivity suffered" ✅ "When we cut meetings by ~40%, cycle time dropped almost immediately"
+
+**FLOW RULE:** 
+Avoid repeating similar sentence structures. Vary sentence openings and rhythm.
+❌ "We tried → it felt right → it failed" pattern
+
+**INSIGHT RULE:**
+End with a reframing that feels new, not common.
+❌ "Productivity isn't about being busy"
+✅ "Availability creates the illusion of work" or "Interruptions scale faster than output"
+
+---
+
+## TWITTER/X THREAD (5-6 tweets, each <240 chars)
+
+### STYLE: Connected narrative thread, NOT isolated facts
+
+**CRITICAL:** Write as a flowing thread that builds momentum. Each tweet should lead naturally to the next.
+
+### THREAD STRUCTURE (Hook → Problem → Shift → Explanation → Conclusion):
+- Tweet 1: Hook (problem/tension) - strong perspective
+- Tweet 2: Problem explanation (why common approach fails)
+- Tweet 3-4: Key insights (shift in thinking, not isolated tips)
+- Tweet 5: Deeper mechanism/why it works
+- Tweet 6: Strong conclusion with perspective
+
+### RULES:
+- **NO "one key point per tweet"** - tweets should build on each other
+- **Use max 1-2 stats** in entire thread (avoid stat dumping)
+- **Minimal/no emojis** unless they add clarity
+- **Focus on WHY things fail/work**, not just WHAT to do
+- **Each tweet flows into the next** - test by reading aloud
+
+### ADVANCED THREAD STYLE:
+- Use short, punchy lines (1–2 sentences max)
+- Add occasional pattern interrupts:
+  e.g., "It looks right. But it isn't."
+- Avoid long paragraphs
+- Make at least 1 line per thread "memorable"
+- End with a strong reframing (not a summary)
+
+**THREAD FLOW RULE:**
+- Do NOT repeat the same sentence pattern
+- Mix short punch lines with explanation lines
+- Vary sentence openings and rhythm
+- Avoid template feel
+
+Do not just explain — make it feel sharp and intentional.
+
+### ❌ BAD THREAD (isolated facts):
+```
+1. Remote teams ship 40% more features! 🚀
+2. Async communication reduces meetings by 60% 📉
+3. Documentation cuts onboarding from 3 months to 3 weeks 📝
+4. Focus blocks: 4.2 vs 2.1 hours daily ⏰
+5. Trust your team and measure outcomes! 🌟
+```
+Why it's bad: Each tweet resets, no story progression, stat overload, emoji spam
+
+### ✅ GOOD THREAD (connected narrative):
+```
+1/6
+Most companies fail at remote work for one reason:
+
+They try to replicate the office online.
+
+Same hours. Same meetings. Same expectations.
+
+2/6
+That approach looks structured — but it kills productivity.
+
+People stay "available" all day,
+but rarely get uninterrupted time to actually think.
+
+3/6
+The teams that perform well do the opposite.
+
+They default to async communication.
+
+Decisions move to writing instead of meetings.
+
+4/6
+That single shift changes everything.
+
+Fewer interruptions → more deep work
+Less coordination → faster execution
+
+5/6
+Documentation becomes your real office.
+
+When everything is written,
+people don't need to ask "why" again and again.
+
+6/6
+Remote work isn't about flexibility.
+
+It's about removing friction.
+
+Most teams don't have a remote problem —
+they have a workflow problem.
+```
+Why it works: Builds momentum, connected story, minimal stats, strong perspective
+
+---
+
+## NEWSLETTER (120-200 words)
+
+### STRUCTURE (STRICT):
+1. Title
+2. 1–2 line intro
+3. 4–6 bullets
+   - each bullet = 1 key idea
+   - 1–2 lines explanation
+4. Final takeaway (2–3 lines)
+
+### BULLET QUALITY RULES:
+Each bullet must:
+- Start with a clear idea
+- Include a short explanation
+- NOT be a vague label
+
+❌ BAD:
+Focus Time Experiment
+
+✅ GOOD:
+Deep work needs to be protected  
+People won't naturally avoid interruptions — it has to be explicitly encouraged
+
+### CRITICAL RULES:
+- If numbers exist → include at least one in bullets
+- Do NOT use generic headings like "Focus Time", "Written Proposals"
+- Keep total length: 120–200 words
+- NO "In conclusion" endings
+- Be specific and actionable
+
+---
+
+## OUTPUT FORMAT (JSON only):
+
+{
+  "linkedin": {
+    "content": "narrative string with line breaks",
+    "used_kps": ["kp_1", "kp_2"]
+  },
+  "twitter": {
+    "tweets": ["tweet1", "tweet2", ...],
+    "used_kps": ["kp_1", "kp_2"]
+  },
+  "newsletter": {
+    "content": "string with ## headings",
+    "used_kps": ["kp_1", "kp_2", "kp_3"]
+  }
+}
+
+---
+
+## ABSOLUTE RULES:
+
+1. LinkedIn = NARRATIVE MODE (no bullet dumps)
+2. Every insight needs CAUSE-EFFECT (what + why)
+3. Hooks must be mistake-based, experience-based, or tension-based
+4. NO generic phrases (see anti-generic filter)
+5. Simulate experience ("We tried...", "Most teams...")
+6. Twitter tweets MUST be <240 characters EACH
+7. Newsletter MUST NOT contain "In conclusion"
+8. NO kp IDs in content
+
+Return ONLY valid JSON."""
 
 
 class FormatterAgent:
     """
-    Transforms structured summaries into platform-specific content formats.
-
-    Responsibility: Create LinkedIn posts, Twitter threads, and newsletter
-    sections with full traceability to source key_points.
+    Transforms summary into platform-specific content.
     
-    Supports:
-    - Platform configuration for constraints
-    - User preferences for style
-    - Full derived_from traceability
+    DECISION PROCESS:
+    1. Select best KPs (critical[:2] + high[:2]) - NOT all, NOT random
+    2. Choose hook type based on content
+    3. Generate product-level output
+    
+    Output: FormattedOutput with linkedin, twitter, newsletter.
+    Each has: content + used_kps[].
     """
 
     def __init__(
         self,
         llm_client: LLMClient | None = None,
-        platform_config: Optional[PlatformConfig] = None
+        platform_config: Optional[dict] = None
     ):
-        """
-        Initialize the FormatterAgent.
-
-        Args:
-            llm_client: Optional custom LLM client, uses default if not provided
-            platform_config: Platform constraints configuration
-        """
         self.llm = llm_client or get_llm_client()
         self.system_prompt = FORMATTER_SYSTEM_PROMPT
-        self.platform_config = platform_config or DEFAULT_PLATFORM_CONFIG
+        self.config = platform_config or {
+            "linkedin_words": (100, 150),
+            "twitter_tweets": 7,
+            "tweet_chars": 240,
+            "newsletter_words": (120, 200)
+        }
+
+    def _select_kps(self, key_points: List[KeyPoint]) -> Tuple[List[KeyPoint], List[KeyPoint]]:
+        """
+        DECISION STEP: Select KPs for content.
+        
+        Strategy for LinkedIn/Twitter: FEWER ideas, DEEPER treatment
+        - critical[:2] + high[:1] = max 3 focused points
+        
+        Newsletter gets all KPs for comprehensive coverage.
+        """
+        critical = [kp for kp in key_points if kp.priority == "critical"]
+        high = [kp for kp in key_points if kp.priority == "high"]
+        medium = [kp for kp in key_points if kp.priority == "medium"]
+        
+        # For LinkedIn/Twitter: Only 2-3 ideas for deep narrative treatment
+        selected = critical[:2] + high[:1]
+        
+        # If we don't have enough, add more
+        if len(selected) < 2:
+            selected += high[:2 - len(selected)]
+        if len(selected) < 2:
+            selected += medium[:2 - len(selected)]
+        
+        # For newsletter: use all KPs for comprehensive coverage
+        all_kps = key_points
+        
+        return selected, all_kps
+
+    def _format_selected_kps(self, kps: List[KeyPoint]) -> str:
+        """Format selected KPs for prompt."""
+        return "\n".join(
+            f"- {kp.id}: [{kp.priority.upper()}] {kp.label}" + 
+            (f" ({kp.data})" if kp.data else "") +
+            f" [type: {kp.type}]"
+            for kp in kps
+        )
 
     def run(
         self,
         summary: SummaryOutput,
         user_preferences: Optional[UserPreferences] = None,
-        platforms: Optional[list[str]] = None
+        platforms: Optional[List[str]] = None
     ) -> FormattedOutput:
         """
-        Transform a summary into multiple content formats.
+        Transform summary into platform content.
+        
+        DECISION PROCESS:
+        1. Select KPs (critical[:2] + high[:2]) - rule-based
+        2. Generate content via LLM
 
         Args:
-            summary: Structured summary from the SummarizerAgent
-            user_preferences: Optional user preferences for style
-            platforms: Optional list of platforms to generate (default: all)
+            summary: SummaryOutput with core_message and key_points
+            user_preferences: Optional style preferences
+            platforms: Which platforms to generate (default: all)
 
         Returns:
-            FormattedOutput with LinkedIn, Twitter, and newsletter content
+            FormattedOutput with linkedin, twitter, newsletter
         """
         prefs = user_preferences or DEFAULT_USER_PREFERENCES
         active_platforms = platforms or prefs.platforms
         
-        # Build key_points list with semantic structure for traceability
-        key_points_text = "\n".join(
-            f"- {kp.id}: CONCEPT='{kp.concept}' | CLAIM='{kp.claim}' | IMPLICATION='{kp.implication}' | IMPORTANCE={kp.importance}"
-            for kp in summary.key_points
-        )
+        # ============================================
+        # STEP 1: Select best KPs (rule-based)
+        # ============================================
+        selected_kps, all_kps = self._select_kps(summary.key_points)
         
-        # List of key point IDs for coverage tracking
-        kp_ids = [kp.id for kp in summary.key_points]
+        # ============================================
+        # STEP 2: Generate content via LLM
+        # ============================================
+        
+        # Format KPs for prompt
+        selected_kp_text = self._format_selected_kps(selected_kps)
+        all_kp_text = self._format_selected_kps(all_kps)
+        
+        selected_kp_ids = [kp.id for kp in selected_kps]
+        all_kp_ids = [kp.id for kp in all_kps]
 
-        # Build insights text with IDs
-        insights_text = "\n".join(
-            f"- [{i.id}] [{i.importance.upper()}] {i.topic}: {i.insight}"
-            for i in summary.key_insights
-        )
+        user_prompt = f"""Generate NARRATIVE content (not bullet dumps).
 
-        # Build platform constraints text
-        constraints_text = self._build_constraints_text()
+## CORE MESSAGE
+{summary.core_message}
 
-        user_prompt = f"""Create engaging, platform-optimized content based on this Content DNA.
-
-## CONTENT DNA
-Title: {summary.title}
-One-Liner: {summary.one_liner}
-Core Message: {summary.core_message}
-Intent: {summary.intent}
-Tone: {summary.tone}
-Structure: {summary.structure}
-Main Theme: {summary.main_theme}
-Target Audience: {summary.target_audience}
-
-## SEMANTIC KEY POINTS (use these IDs for derived_from traceability):
-{key_points_text}
-
-## KEY POINT IDs TO COVER: {kp_ids}
-
-## KEY INSIGHTS (for source_insights arrays):
-{insights_text}
+## SOURCE INSIGHTS (go DEEP not wide)
+{selected_kp_text}
 
 ## USER PREFERENCES
 - Tone: {prefs.tone}
-- Goal: {prefs.goal}
 - Audience: {prefs.audience}
-- Platforms: {', '.join(active_platforms)}
 
-## PLATFORM CONSTRAINTS (STRICTLY VALIDATED)
-{constraints_text}
+## CRITICAL INSTRUCTIONS
 
-## REQUIREMENTS
+LINKEDIN (narrative mode):
+- Structure: problem → failure → shift → insight → takeaway
+- Hook: mistake-based OR tension-based (NOT data-first)
+- NO bullet points - use paragraphs with line breaks
+- Include CAUSE-EFFECT for each insight (what + why)
+- Use experience framing ("We tried...", "Most teams...")
+- SPECIFICITY: Use concrete numbers/results when available
+- FLOW: Vary sentence structures, avoid repetitive patterns
+- INSIGHT: End with sharp reframing, not generic conclusions
+- 100-150 words
 
-### LinkedIn Post
-1. Hook: Strong professional opening (REQUIRED - validated)
-2. Body: Cover 3+ key_points using their concepts and claims
-3. CTA: Engaging question (REQUIRED - validated)
-4. Hashtags: 3-5 relevant
-5. derived_from: ["{kp_ids[0]}", ...] - list ALL key_point IDs used
-6. source_insights: ["insight_1", ...] - list ALL insights covered
+TWITTER (connected thread):
+- Write as flowing narrative thread (Hook → Problem → Shift → Explanation → Conclusion)
+- Each tweet builds on the previous one - test by reading aloud
+- Tweet 1: Strong hook (problem/tension, not data)
+- Tweets 2-6: Connected story progression
+- Max 1-2 stats in entire thread (avoid stat dumping)
+- Minimal emojis unless adding clarity
+- Short, punchy lines (1-2 sentences max per line)
+- Add pattern interrupts: "It looks right. But it isn't."
+- Make at least 1 line per thread memorable
+- End with strong reframing (not summary)
+- FLOW: Vary sentence patterns, avoid template feel
+- Each tweet <240 characters, 5-6 tweets total
 
-### Twitter Thread
-1. EXACTLY {self.platform_config.twitter.thread_length_min}-{self.platform_config.twitter.thread_length_max} tweets
-2. EACH tweet MUST be ≤{self.platform_config.twitter.max_chars_per_tweet} characters (HARD LIMIT)
-3. tweet_mappings: REQUIRED - [{{"tweet_index": 0, "derived_from": ["{kp_ids[0]}"]}}, ...]
-4. derived_from: List ALL key_point IDs used across thread
-5. source_insights: List ALL insights covered
+NEWSLETTER (120-200 words):
+- STRUCTURE: Title → 1-2 line intro → 4-6 bullets → final takeaway
+- Each bullet: clear idea + 1-2 lines explanation
+- Include numbers if available
+- NO generic headings
+- NO "In conclusion"
+- Be specific and actionable
 
-### Newsletter
-1. Subject: 6-10 words
-2. {self.platform_config.newsletter.min_sections}-{self.platform_config.newsletter.max_sections} body sections
-3. sections_with_traceability: Each section with its derived_from using key_point IDs
-4. derived_from: List ALL key_point IDs used
-5. source_insights: List ALL insights covered
-
-## CRITICAL RULES
-- Use ONLY ideas from the summary - NO invented examples
-- ALL key_points ({kp_ids}) must appear in at least one format
-- Twitter tweets MUST be ≤280 characters each - COUNT CAREFULLY
-- Use key_point IDs (e.g., "{kp_ids[0]}") NOT index notation"""
+Return valid JSON only."""
 
         result = self.llm.generate(
             system_prompt=self.system_prompt,
             user_prompt=user_prompt,
             output_schema=FormattedOutput,
-            temperature=0.7,  # Higher creativity for content generation
+            temperature=0.5,  # Lower for more consistent quality
         )
 
-        # Post-process to ensure constraints and traceability
-        result = self._post_process(result, summary)
+        # Pre-process to fix constraint violations BEFORE post-process
+        # This ensures we don't hit validation errors
+        if len(result.twitter.tweets) > 7:
+            result.twitter.tweets = result.twitter.tweets[:7]
         
-        # Hard validation of constraints
-        self._validate_constraints(result)
-
-        # Ensure version is set to 1
+        # Post-process
+        result = self._post_process(result, summary)
         result.version = 1
 
         return result
-
-    def _build_constraints_text(self) -> str:
-        """Build platform constraints description."""
-        lc = self.platform_config.linkedin
-        tc = self.platform_config.twitter
-        nc = self.platform_config.newsletter
-        
-        return f"""### LinkedIn
-- Tone: {lc.tone}
-- Length: {lc.length}
-- Style: {lc.style}
-- Hook Required: {lc.constraints.hook_required}
-
-### Twitter/X
-- Tone: {tc.tone}
-- Style: {tc.style}
-- Max chars per tweet: {tc.max_chars_per_tweet}
-- Thread length: {tc.thread_length_min}-{tc.thread_length_max} tweets
-
-### Newsletter
-- Tone: {nc.tone}
-- Style: {nc.style}
-- Sections: {nc.min_sections}-{nc.max_sections}"""
 
     def _post_process(
         self,
         result: FormattedOutput,
         summary: SummaryOutput
     ) -> FormattedOutput:
-        """
-        Post-process to ensure constraints and derive traceability if missing.
-        Uses semantic key point IDs (e.g., "kp_1") instead of index notation.
-        """
+        """Post-process to ensure constraints."""
         kp_ids = [kp.id for kp in summary.key_points]
         
-        # Ensure LinkedIn has derived_from
-        if not result.linkedin.derived_from:
-            result.linkedin.derived_from = self._infer_derived_from(
-                result.linkedin.hook + " " + result.linkedin.body,
-                summary.key_points
-            )
-
-        # Ensure Twitter has derived_from and mappings
-        if not result.twitter.derived_from:
-            all_derived = []
-            for i, tweet in enumerate(result.twitter.tweets):
-                derived = self._infer_derived_from(tweet, summary.key_points)
-                all_derived.extend(derived)
-                # Add to tweet_mappings if missing
-                if i >= len(result.twitter.tweet_mappings):
-                    from schemas.schemas import TweetMapping
-                    result.twitter.tweet_mappings.append(
-                        TweetMapping(
-                            tweet_index=i, 
-                            derived_from=derived or [kp_ids[i % len(kp_ids)]]
-                        )
-                    )
-            result.twitter.derived_from = list(set(all_derived))
-
-        # Ensure Newsletter has derived_from
-        if not result.newsletter.derived_from:
-            all_content = result.newsletter.intro + " " + " ".join(result.newsletter.body_sections)
-            result.newsletter.derived_from = self._infer_derived_from(
-                all_content,
-                summary.key_points
-            )
-
-        # Truncate tweets that exceed 280 chars (safety net)
+        # Ensure used_kps are valid
+        result.linkedin.used_kps = [
+            kp for kp in result.linkedin.used_kps if kp in kp_ids
+        ]
+        result.twitter.used_kps = [
+            kp for kp in result.twitter.used_kps if kp in kp_ids
+        ]
+        result.newsletter.used_kps = [
+            kp for kp in result.newsletter.used_kps if kp in kp_ids
+        ]
+        
+        # Truncate tweets that exceed limit
+        max_chars = self.config.get("tweet_chars", 240)
         for i, tweet in enumerate(result.twitter.tweets):
-            if len(tweet) > 280:
-                # Truncate at word boundary
-                truncated = tweet[:277]
+            if len(tweet) > max_chars:
+                truncated = tweet[:max_chars - 3]
                 last_space = truncated.rfind(' ')
-                if last_space > 200:
+                if last_space > max_chars - 40:
                     truncated = truncated[:last_space]
                 result.twitter.tweets[i] = truncated + "..."
+        
+        # Limit tweet count
+        max_tweets = self.config.get("twitter_tweets", 7)
+        if len(result.twitter.tweets) > max_tweets:
+            result.twitter.tweets = result.twitter.tweets[:max_tweets]
 
         return result
-
-    def _validate_constraints(self, result: FormattedOutput) -> None:
-        """
-        Perform hard validation of platform constraints.
-        Logs warnings for violations but doesn't fail (reviewer will catch issues).
-        """
-        violations = []
-        
-        # Validate Twitter
-        tw_valid, tw_violations = validate_twitter_thread(
-            result.twitter.tweets,
-            self.platform_config.twitter
-        )
-        if tw_violations:
-            violations.extend([f"Twitter: {v.constraint} - {v.actual} (expected {v.expected})" 
-                              for v in tw_violations])
-        
-        # Validate LinkedIn
-        li_valid, li_violations = validate_linkedin_post(
-            result.linkedin.hook,
-            result.linkedin.body,
-            result.linkedin.call_to_action,
-            self.platform_config.linkedin
-        )
-        if li_violations:
-            violations.extend([f"LinkedIn: {v.constraint} - {v.actual} (expected {v.expected})" 
-                              for v in li_violations])
-        
-        # Validate Newsletter
-        nl_valid, nl_violations = validate_newsletter(
-            result.newsletter.intro,
-            result.newsletter.body_sections,
-            result.newsletter.closing,
-            self.platform_config.newsletter
-        )
-        if nl_violations:
-            violations.extend([f"Newsletter: {v.constraint} - {v.actual} (expected {v.expected})" 
-                              for v in nl_violations])
-        
-        # Store violations for reviewer to access (attached to result)
-        result._constraint_violations = violations
-
-    def _infer_derived_from(
-        self,
-        content: str,
-        key_points: List[SemanticKeyPoint]
-    ) -> List[str]:
-        """
-        Infer which key_points a piece of content is derived from.
-        Uses semantic matching against concept, claim, and implication.
-        Returns key point IDs (e.g., "kp_1", "kp_2").
-        """
-        derived = []
-        content_lower = content.lower()
-        
-        for kp in key_points:
-            # Match against concept, claim, and implication
-            concept_words = [w.lower() for w in kp.concept.split() if len(w) > 3]
-            claim_words = [w.lower() for w in kp.claim.split() if len(w) > 4]
-            
-            # Check if any significant words appear in content
-            concept_match = any(word in content_lower for word in concept_words)
-            claim_match = any(word in content_lower for word in claim_words[:4])
-            
-            if concept_match or claim_match:
-                derived.append(kp.id)
-        
-        return derived
