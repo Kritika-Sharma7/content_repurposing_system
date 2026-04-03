@@ -57,7 +57,7 @@ const agents = [
 
 export default function AgentCards() {
   return (
-    <div className="agent-cards grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="agent-cards grid grid-cols-1 md:grid-cols-2 gap-6">
       {agents.map((agent) => {
         const Icon = agent.icon;
 
@@ -65,43 +65,45 @@ export default function AgentCards() {
           <div
             key={agent.name}
             className={`
-              agent-card-enhanced rounded-xl border-2 p-5
+              agent-card-enhanced rounded-xl border-3 p-6
               ${agent.borderColor} bg-white
-              hover:shadow-lg transition-all duration-300
+              hover:shadow-2xl transition-all duration-300
+              hover:scale-102
             `}
+            style={{ borderWidth: '2px' }}
           >
             {/* Header */}
-            <div className="flex items-start gap-3 mb-4">
-              <div className={`p-2.5 rounded-xl ${agent.iconBg}`}>
-                <Icon className={`w-6 h-6 ${agent.textColor}`} />
+            <div className="flex items-start gap-4 mb-5">
+              <div className={`p-3 rounded-xl ${agent.iconBg} shadow-md`}>
+                <Icon className={`w-7 h-7 ${agent.textColor}`} />
               </div>
               <div>
-                <h3 className={`font-bold text-lg ${agent.textColor}`}>{agent.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{agent.role}</p>
+                <h3 className={`font-bold text-xl ${agent.textColor} mb-2`}>{agent.name}</h3>
+                <p className="text-sm text-gray-700 leading-relaxed">{agent.role}</p>
               </div>
             </div>
 
             {/* I/O */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Input</span>
-                <code className={`block text-xs mt-1 p-2 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono`}>
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Input</span>
+                <code className={`block text-xs mt-2 p-3 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono leading-relaxed`}>
                   {agent.input}
                 </code>
               </div>
               <div>
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Output</span>
-                <code className={`block text-xs mt-1 p-2 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono`}>
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Output</span>
+                <code className={`block text-xs mt-2 p-3 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono leading-relaxed`}>
                   {agent.output}
                 </code>
               </div>
             </div>
 
             {/* Key feature */}
-            <div className={`mt-4 pt-3 border-t ${agent.borderColor}`}>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold ${agent.textColor}`}>Key Feature:</span>
-                <span className="text-xs text-gray-600">{agent.keyFeature}</span>
+            <div className={`mt-5 pt-4 border-t-2 ${agent.borderColor}`}>
+              <div className="flex items-start gap-2">
+                <span className={`text-sm font-bold ${agent.textColor}`}>💡 Key Feature:</span>
+                <span className="text-sm text-gray-700">{agent.keyFeature}</span>
               </div>
             </div>
           </div>

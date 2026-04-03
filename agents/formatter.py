@@ -422,8 +422,15 @@ class FormatterAgent:
 ## CORE MESSAGE
 {summary.core_message}
 
-## SOURCE INSIGHTS (go DEEP not wide)
+## KEY POINTS FOR LINKEDIN/TWITTER (go DEEP not wide)
 {selected_kp_text}
+
+Selected KP IDs for LinkedIn/Twitter: {selected_kp_ids}
+
+## ALL KEY POINTS FOR NEWSLETTER (comprehensive coverage)
+{all_kp_text}
+
+All KP IDs for Newsletter: {all_kp_ids}
 
 ## USER PREFERENCES
 - Tone: {prefs.tone}
@@ -441,6 +448,7 @@ LINKEDIN (narrative mode):
 - FLOW: Vary sentence structures, avoid repetitive patterns
 - INSIGHT: End with sharp reframing, not generic conclusions
 - 100-150 words
+- USE ONLY the key points listed above for LinkedIn/Twitter
 
 TWITTER (connected thread):
 - Write as flowing narrative thread (Hook → Problem → Shift → Explanation → Conclusion)
@@ -455,6 +463,7 @@ TWITTER (connected thread):
 - End with strong reframing (not summary)
 - FLOW: Vary sentence patterns, avoid template feel
 - Each tweet <240 characters, 5-6 tweets total
+- USE ONLY the key points listed above for LinkedIn/Twitter
 
 NEWSLETTER (120-200 words):
 - STRUCTURE: Title → 1-2 line intro → 4-6 bullets → final takeaway
@@ -463,6 +472,31 @@ NEWSLETTER (120-200 words):
 - NO generic headings
 - NO "In conclusion"
 - Be specific and actionable
+- ⚠️ MUST cover ALL key points provided (all KP IDs listed above)
+- Ensure every key point appears clearly in the newsletter content
+
+---
+
+## ⚠️ CRITICAL: used_kps ACCURACY RULE (MANDATORY)
+
+For EACH platform (LinkedIn, Twitter, Newsletter):
+
+1. `used_kps` MUST list ALL key points that are clearly expressed in the content
+2. If a key point idea appears in the writing, its ID MUST be in `used_kps`
+3. Do NOT omit any key point that was used
+4. Do NOT include key points that are NOT actually expressed in the content
+5. `used_kps` must be ACCURATE and COMPLETE
+
+BEFORE RETURNING OUTPUT:
+- For LinkedIn: Check each KP from {selected_kp_ids} - if its idea is in the content, include it in used_kps
+- For Twitter: Check each KP from {selected_kp_ids} - if its idea is in the content, include it in used_kps  
+- For Newsletter: Check each KP from {all_kp_ids} - if its idea is in the content, include it in used_kps
+
+Newsletter should use ALL key points, so newsletter.used_kps should contain: {all_kp_ids}
+
+⚠️ If used_kps is incorrect or incomplete, the output is INVALID.
+
+---
 
 Return valid JSON only."""
 
@@ -502,6 +536,11 @@ Return valid JSON only."""
         result.newsletter.used_kps = [
             kp for kp in result.newsletter.used_kps if kp in kp_ids
         ]
+        
+        # Ensure newsletter covers ALL key points (deterministic correction)
+        # Newsletter is required to cover all KPs, so used_kps should contain all
+        if len(result.newsletter.used_kps) < len(kp_ids):
+            result.newsletter.used_kps = kp_ids
         
         # Truncate tweets that exceed limit
         max_chars = self.config.get("tweet_chars", 240)

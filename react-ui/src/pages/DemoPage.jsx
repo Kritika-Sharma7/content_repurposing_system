@@ -102,7 +102,7 @@ export default function DemoPage() {
           />
           <FormatterView formatted={result.v1} loading={false} />
           <ReviewerView review={result.review} loading={false} />
-          <RefinerView v1={result.v1} v2={result.v2} loading={false} />
+          <RefinerView v1={result.v1} v2={result.v2} reviewData={result.review} loading={false} />
         </section>
       )}
 

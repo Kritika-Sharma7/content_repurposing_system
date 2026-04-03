@@ -91,9 +91,15 @@ export default function WorkflowDiagram() {
   };
 
   return (
-    <div className="workflow-diagram py-4">
+    <div className="workflow-diagram py-6">
+      {/* Title Section */}
+      <div className="text-center mb-8">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Pipeline Flow</h3>
+        <p className="text-sm text-gray-600">Click any step to learn more</p>
+      </div>
+
       {/* Main workflow */}
-      <div className="flex flex-wrap items-center justify-center gap-2 lg:gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3 lg:gap-4">
         {workflowSteps.map((step, idx) => {
           const Icon = step.icon;
           const isHovered = hoveredStep === step.id;
@@ -101,38 +107,41 @@ export default function WorkflowDiagram() {
           const isDimmed = (hoveredStep !== null || selectedStep !== null) && !isHovered && !isSelected;
 
           return (
-            <div key={step.id} className="flex items-center gap-1 lg:gap-2">
+            <div key={step.id} className="flex items-center gap-2 lg:gap-3">
               {/* Node */}
               <div
                 onClick={() => handleStepClick(step.id)}
                 className={`
                   workflow-node relative flex flex-col items-center justify-center
-                  px-3 py-3 lg:px-4 lg:py-4 rounded-xl border-2 bg-white cursor-pointer
-                  transition-all duration-300 ease-out min-w-[100px] lg:min-w-[120px]
+                  px-4 py-4 lg:px-5 lg:py-5 rounded-xl border-3 bg-white cursor-pointer
+                  transition-all duration-300 ease-out min-w-[110px] lg:min-w-[140px]
                   ${isHovered || isSelected ? step.activeBorder : step.borderColor}
-                  ${isHovered || isSelected ? `scale-105 shadow-lg ${step.glowColor}` : 'shadow-sm'}
+                  ${isHovered || isSelected ? `scale-110 shadow-2xl ${step.glowColor}` : 'shadow-md'}
                   ${isDimmed ? 'opacity-40 scale-95' : 'opacity-100'}
                   ${step.hoverBg}
                 `}
+                style={{
+                  borderWidth: isHovered || isSelected ? '3px' : '2px'
+                }}
                 onMouseEnter={() => setHoveredStep(step.id)}
                 onMouseLeave={() => setHoveredStep(null)}
               >
                 {/* Icon badge */}
-                <div className={`p-2 rounded-lg ${step.bgColor} mb-2 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
-                  <Icon className={`w-5 h-5 ${step.textColor}`} />
+                <div className={`p-2.5 rounded-xl ${step.bgColor} mb-3 transition-transform duration-300 ${isHovered ? 'scale-125' : ''}`}>
+                  <Icon className={`w-6 h-6 ${step.textColor}`} />
                 </div>
                 
                 {/* Title */}
-                <span className={`font-semibold text-sm ${step.textColor}`}>
+                <span className={`font-bold text-base ${step.textColor}`}>
                   {step.title}
                 </span>
                 
                 {/* Data schema label */}
                 <div className={`
-                  mt-1.5 px-2 py-0.5 rounded-full text-xs font-mono
+                  mt-2 px-2.5 py-1 rounded-full text-xs font-mono
                   ${step.bgColor} ${step.textColor}
                   transition-all duration-300
-                  ${isHovered || isSelected ? 'opacity-100' : 'opacity-70'}
+                  ${isHovered || isSelected ? 'opacity-100 font-semibold' : 'opacity-80'}
                 `}>
                   ↓ {step.dataSchema}
                 </div>
@@ -146,15 +155,15 @@ export default function WorkflowDiagram() {
               {/* Animated arrow connector */}
               {idx < workflowSteps.length - 1 && (
                 <div className={`
-                  hidden sm:flex items-center justify-center w-6 lg:w-8
+                  hidden sm:flex items-center justify-center w-8 lg:w-10
                   transition-all duration-300
                   ${isDimmed ? 'opacity-30' : 'opacity-100'}
                 `}>
                   <ChevronRight 
                     className={`
-                      w-5 h-5 text-gray-400 
+                      w-6 h-6 text-gray-500 
                       transition-transform duration-300
-                      ${isHovered && idx === workflowSteps.findIndex(s => s.id === hoveredStep) ? 'translate-x-1 text-gray-600' : ''}
+                      ${isHovered && idx === workflowSteps.findIndex(s => s.id === hoveredStep) ? 'translate-x-1 text-gray-700 scale-125' : ''}
                     `} 
                   />
                 </div>
@@ -165,37 +174,53 @@ export default function WorkflowDiagram() {
       </div>
       
       {/* Feedback loop indicator - Enhanced */}
-      <div className="flex justify-center mt-6">
-        <div className="relative flex items-center gap-3 text-sm bg-gradient-to-r from-orange-50 via-yellow-50 to-green-50 border border-orange-200/60 px-5 py-3 rounded-2xl shadow-sm">
-          {/* Animated loop icon */}
-          <div className="relative">
-            <span className="text-orange-500 text-xl animate-spin-slow">↻</span>
+      <div className="flex justify-center mt-10">
+        <div className="relative flex flex-col items-center gap-3 bg-gradient-to-br from-orange-50 via-yellow-50 to-green-50 border-2 border-orange-300 px-6 py-4 rounded-2xl shadow-lg">
+          {/* Title */}
+          <div className="flex items-center gap-2">
+            <span className="text-orange-500 text-2xl animate-spin-slow">🔁</span>
+            <span className="font-bold text-gray-800 text-base">Feedback Loop</span>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">Feedback loop:</span>
-            <span className="font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded">Reviewer</span>
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-            <span className="font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded">Refiner</span>
-            <span className="text-gray-500 text-xs ml-1">until 90% score</span>
+          {/* Flow */}
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-orange-100 border-2 border-orange-400 rounded-xl">
+              <span className="font-bold text-orange-700">Reviewer</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ArrowRight className="w-5 h-5 text-gray-600" />
+              <ArrowRight className="w-5 h-5 text-gray-600 -ml-3" />
+            </div>
+            <div className="px-4 py-2 bg-green-100 border-2 border-green-400 rounded-xl">
+              <span className="font-bold text-green-700">Refiner</span>
+            </div>
+          </div>
+          
+          {/* Detail */}
+          <div className="text-sm text-gray-600 font-medium">
+            Iterates until <span className="font-bold text-orange-600">90% quality score</span>
           </div>
         </div>
       </div>
 
       {/* Step detail tooltip (when selected) */}
       {selectedStep && (
-        <div className="mt-4 p-4 bg-white border border-gray-200 rounded-xl shadow-md max-w-md mx-auto animate-fadeIn">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="mt-6 p-5 bg-white border-2 border-gray-300 rounded-xl shadow-xl max-w-lg mx-auto animate-fadeIn">
+          <div className="flex items-center gap-3 mb-3">
             {(() => {
               const step = workflowSteps.find(s => s.id === selectedStep);
               const Icon = step?.icon;
-              return Icon && <Icon className={`w-5 h-5 ${step.textColor}`} />;
+              return Icon && (
+                <div className={`p-2.5 rounded-lg ${step.bgColor}`}>
+                  <Icon className={`w-6 h-6 ${step.textColor}`} />
+                </div>
+              );
             })()}
-            <h4 className="font-semibold text-gray-800">
+            <h4 className="font-bold text-lg text-gray-900">
               {workflowSteps.find(s => s.id === selectedStep)?.title}
             </h4>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-700 leading-relaxed">
             {selectedStep === 'input' && 'Long-form content enters the pipeline. Supports text and URL inputs.'}
             {selectedStep === 'summarizer' && 'Extracts Content DNA: semantic key_points (kp_1, kp_2) with concept, claim, and implication.'}
             {selectedStep === 'formatter' && 'Transforms summary into LinkedIn, Twitter, and Newsletter formats with derived_from traceability.'}

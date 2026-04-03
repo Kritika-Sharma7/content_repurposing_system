@@ -101,10 +101,10 @@ export default function SystemPrinciples() {
 
   return (
     <div className="system-principles">
-      <h3 className="text-lg font-semibold text-gray-800 mb-2">Design Principles</h3>
-      <p className="text-sm text-gray-500 mb-4">Core architectural decisions that drive reliability and quality</p>
+      <h2 className="text-2xl font-bold text-gray-900 mb-3">Design Principles</h2>
+      <p className="text-base text-gray-600 mb-6">Core architectural decisions that drive reliability and quality</p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {principles.map((principle, idx) => {
           const Icon = principle.icon;
           const colors = colorClasses[principle.color];
@@ -115,11 +115,11 @@ export default function SystemPrinciples() {
               key={idx}
               onClick={() => togglePrinciple(idx)}
               className={`
-                group relative flex flex-col p-4 rounded-xl border-2 cursor-pointer
+                group relative flex flex-col p-5 rounded-xl border-2 cursor-pointer
                 ${colors.bg} ${colors.border} ${colors.bgHover} ${colors.borderHover}
-                hover:shadow-md ${colors.glow}
+                hover:shadow-lg ${colors.glow}
                 transition-all duration-300
-                ${isExpanded ? 'ring-2 ring-offset-2 ring-opacity-50' : ''}
+                ${isExpanded ? 'ring-2 ring-offset-2 ring-opacity-50 scale-102' : ''}
               `}
               style={{ 
                 '--tw-ring-color': isExpanded ? `var(--${principle.color}-400)` : undefined 
@@ -127,17 +127,17 @@ export default function SystemPrinciples() {
             >
               {/* Header */}
               <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${colors.iconBg} shadow-sm flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
-                  <Icon className={`w-5 h-5 ${colors.icon}`} />
+                <div className={`p-2.5 rounded-lg ${colors.iconBg} shadow-sm flex-shrink-0 transition-transform duration-300 group-hover:scale-110`}>
+                  <Icon className={`w-6 h-6 ${colors.icon}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h4 className={`font-semibold text-sm ${colors.title}`}>
+                    <h4 className={`font-bold text-base ${colors.title}`}>
                       {principle.title}
                     </h4>
-                    <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                   </div>
-                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  <p className="text-sm text-gray-700 mt-2 leading-relaxed">
                     {principle.description}
                   </p>
                 </div>
@@ -146,19 +146,19 @@ export default function SystemPrinciples() {
               {/* Expanded details */}
               <div className={`
                 overflow-hidden transition-all duration-300
-                ${isExpanded ? 'max-h-24 mt-3 pt-3 border-t border-gray-200/50' : 'max-h-0'}
+                ${isExpanded ? 'max-h-32 mt-4 pt-4 border-t-2 border-gray-300' : 'max-h-0'}
               `}>
-                <p className="text-xs text-gray-500 italic">
+                <p className="text-xs text-gray-600 italic leading-relaxed">
                   {principle.details}
                 </p>
               </div>
 
               {/* Hover indicator */}
               <div className={`
-                absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl
+                absolute bottom-0 left-0 right-0 h-1 rounded-b-xl
                 transition-all duration-300
                 ${colors.icon.replace('text', 'bg')}
-                ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}
+                ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}
               `} />
             </div>
           );

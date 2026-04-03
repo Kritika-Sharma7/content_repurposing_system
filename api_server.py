@@ -202,6 +202,9 @@ def run_pipeline(payload: PipelineRunRequest) -> PipelineRunResponse:
     except LLMError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     except Exception as exc:
+        import traceback
+        print(f"[ERROR] Pipeline execution failed: {exc}")
+        print(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Pipeline execution failed: {exc}"

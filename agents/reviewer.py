@@ -1,113 +1,112 @@
 """
 ReviewerAgent: Evaluates outputs and generates actionable feedback.
 
-CLEAN DESIGN v4 (MOST IMPORTANT AGENT):
-- Output: ISSUES ONLY (no scores)
-- Each issue has: issue_id, target, type, problem, reason, suggestion, priority
-- Types: structure, coverage, constraint, clarity
-- Must check: coverage, constraints, structure, clarity
+HYBRID DESIGN v2:
+- Coverage + Quality: LLM evaluates each KP per format
+- Python: Creates issues based on LLM evaluation
+- Python: Deduplication, prioritization, limits
 """
 
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict
+from pydantic import BaseModel
 from schemas.schemas import (
-    SummaryOutput, FormattedOutput, ReviewOutput, ReviewIssue
+    SummaryOutput, FormattedOutput, ReviewOutput, ReviewIssue, ReviewSummary, KeyPoint
 )
 from utils.llm import LLMClient, get_llm_client
 
 
-REVIEWER_SYSTEM_PROMPT = """You are a strict content quality reviewer focused on NARRATIVE QUALITY.
+# Internal schema for per-KP evaluation
+class KPEvaluation(BaseModel):
+    """Evaluation of a single key point in a single format."""
+    kp_id: str
+    present: bool  # Is the idea expressed in this format?
+    quality: str   # "strong", "weak", or "missing"
+    reason: str    # Brief explanation
 
-## YOUR JOB
-Find issues that make content feel generic, corporate, or like a "bullet dump."
 
-## WHAT MAKES CONTENT BAD:
+class FormatEvaluation(BaseModel):
+    """Evaluation of all key points in a single format."""
+    format_name: str
+    evaluations: List[KPEvaluation]
 
-### LINKEDIN:
-❌ Bullet dump: Uses • or - to list points instead of narrative flow
-❌ Generic hook: "Here's how...", "Did you know...", "Is your..."
-❌ No cause-effect: States facts without explaining WHY
-❌ Corporate speak: "leverage", "unlock", "transform your"
-❌ No experience framing: Doesn't feel like lived insight
 
-### GOOD LINKEDIN SIGNS:
-✅ Narrative flow with paragraphs
-✅ Mistake-based or tension-based hook
-✅ Cause-effect explanations (what + why)
-✅ Experience framing ("We tried...", "Most teams...")
-✅ Clear problem → shift → insight structure
+class ContentEvaluation(BaseModel):
+    """Complete evaluation of all formats."""
+    linkedin: List[KPEvaluation]
+    twitter: List[KPEvaluation]
+    newsletter: List[KPEvaluation]
+    clarity_issues: List[str]  # General clarity problems (not KP-specific)
+    consistency_issue: Optional[str]  # Contradiction if any
 
-### TWITTER:
-❌ Tweets too long: Over 240 chars
-❌ Announcement style: "Here's a thread on X!"
-❌ No tension or opinion
 
-### NEWSLETTER:
-❌ "In conclusion": Uses this phrase
-❌ No headings: Missing ## section headers
-❌ Too dense: Long paragraphs without breaks
+EVALUATION_PROMPT = """You are a content reviewer. Your job is to evaluate each key point in each format.
 
-## ISSUE TYPES
+## YOUR TASK
 
-1. STRUCTURE - Format/narrative problems (HIGH priority)
-2. COVERAGE - Missing key points (CRITICAL if missing critical KPs)
-3. CONSTRAINT - Platform rules violated (CRITICAL)
-4. CLARITY - Writing quality issues (MEDIUM)
+For EACH key point, in EACH format (LinkedIn, Twitter, Newsletter):
+
+1. Is this key point's idea PRESENT in the content? (yes/no)
+2. If present, what is the QUALITY?
+   - "strong" = explained clearly with cause-effect, concrete details
+   - "weak" = mentioned briefly, vague, abstract, or buried in other content
+   - "missing" = idea is not expressed at all
+
+## EVALUATION CRITERIA
+
+A key point is PRESENT if its core idea is expressed. Look for:
+- The concept being discussed (not just keywords)
+- The insight or claim being made
+
+A key point is STRONG if:
+- It has clear cause-effect explanation
+- It's given appropriate emphasis
+- It uses concrete language
+
+A key point is WEAK if:
+- It's mentioned but not explained
+- It's buried inside another idea
+- It uses vague/abstract language
+- It feels like a throwaway mention
+
+## ALSO CHECK
+
+1. **Clarity Issues**: Flag any abstract/academic phrasing that lacks intuitive explanation
+2. **Consistency Issues**: Flag ONLY if formats contradict each other (rare)
 
 ## OUTPUT FORMAT
 
+Return JSON:
 {
-  "issues": [
-    {
-      "issue_id": "issue_1",
-      "target": "linkedin | twitter | newsletter",
-      "type": "structure | coverage | constraint | clarity",
-      "problem": "Specific problem",
-      "reason": "Why it hurts engagement",
-      "suggestion": "Exact fix with example",
-      "priority": "critical | high | medium | low",
-      "missing_kps": []
-    }
-  ]
+  "linkedin": [
+    {"kp_id": "kp_1", "present": true, "quality": "strong", "reason": "..."},
+    {"kp_id": "kp_2", "present": true, "quality": "weak", "reason": "..."},
+    {"kp_id": "kp_3", "present": false, "quality": "missing", "reason": "..."}
+  ],
+  "twitter": [...],
+  "newsletter": [...],
+  "clarity_issues": ["specific issue description if any"],
+  "consistency_issue": null
 }
 
-## GOOD vs BAD ISSUES
-
-✅ GOOD:
-{
-  "problem": "Content is a bullet dump, not narrative",
-  "reason": "Bullet lists feel like a summary, not insight. They don't create engagement.",
-  "suggestion": "Rewrite as: 'Most teams get this wrong. They [problem]. What changed was [shift]. The result? [outcome]'"
-}
-
-❌ BAD:
-{
-  "problem": "Could be more engaging",
-  "suggestion": "Make it better"
-}
-
-## PRIORITY:
-- CRITICAL: Constraint violations (tweet length, missing critical KPs)
-- HIGH: Bullet dumps, weak hooks, no cause-effect
-- MEDIUM: Clarity issues, minor structural problems
-- LOW: Style preferences
-
-Return JSON only."""
+Be STRICT. If a key point is not clearly expressed, mark it as missing or weak.
+Do NOT assume presence just because a related word appears."""
 
 
 class ReviewerAgent:
     """
-    Evaluates formatted content and generates actionable issues.
+    Evaluates formatted content using LLM-based per-KP evaluation.
     
-    Output: ReviewOutput with issues[] only.
-    Each issue has: issue_id, target, type, problem, reason, suggestion, priority.
+    Design:
+    1. LLM evaluates each KP in each format (present/missing, strong/weak)
+    2. Python creates issues based on evaluation results
+    3. Python handles deduplication, priority, and limits
     """
 
     def __init__(
         self,
-        llm_client: LLMClient | None = None
+        llm_client: Optional[LLMClient] = None
     ):
         self.llm = llm_client or get_llm_client()
-        self.system_prompt = REVIEWER_SYSTEM_PROMPT
 
     def run(
         self,
@@ -122,65 +121,117 @@ class ReviewerAgent:
             formatted: Formatted content to review
 
         Returns:
-            ReviewOutput with list of actionable issues
+            ReviewOutput with list of actionable issues (max 3)
         """
-        # Build key points reference
-        kp_text = "\n".join(
-            f"- {kp.id}: [{kp.priority.upper()}] {kp.label}" +
-            (f" ({kp.data})" if kp.data else "")
-            for kp in summary.key_points
-        )
+        # Build KP lookup for priority checks
+        kp_lookup: Dict[str, KeyPoint] = {kp.id: kp for kp in summary.key_points}
         
-        kp_ids = [kp.id for kp in summary.key_points]
-        critical_kps = [kp.id for kp in summary.key_points if kp.priority == "critical"]
+        # --- STEP 1: LLM evaluates each KP in each format ---
+        evaluation = self._evaluate_content(summary, formatted)
+        
+        if evaluation is None:
+            # LLM failed, return empty review
+            return self._create_empty_review()
+        
+        # --- STEP 2: Create issues based on evaluation ---
+        issues: List[ReviewIssue] = []
+        
+        # Process missing/weak KPs per format
+        format_evals = {
+            "linkedin": evaluation.linkedin,
+            "twitter": evaluation.twitter,
+            "newsletter": evaluation.newsletter,
+        }
+        
+        # Track missing KPs across formats
+        missing_kps: Dict[str, List[str]] = {}  # kp_id -> [formats]
+        weak_kps: Dict[str, List[str]] = {}     # kp_id -> [formats]
+        
+        for fmt_name, kp_evals in format_evals.items():
+            for kp_eval in kp_evals:
+                kp_id = kp_eval.kp_id
+                if kp_eval.quality == "missing" or not kp_eval.present:
+                    if kp_id not in missing_kps:
+                        missing_kps[kp_id] = []
+                    missing_kps[kp_id].append(fmt_name)
+                elif kp_eval.quality == "weak":
+                    if kp_id not in weak_kps:
+                        weak_kps[kp_id] = []
+                    weak_kps[kp_id].append(fmt_name)
+        
+        # Create coverage issues for missing KPs
+        for kp_id, formats in missing_kps.items():
+            kp = kp_lookup.get(kp_id)
+            if kp:
+                issue = self._create_coverage_issue(kp, formats)
+                if issue:
+                    issues.append(issue)
+        
+        # Create clarity issues for weak KPs (only critical/high priority)
+        for kp_id, formats in weak_kps.items():
+            kp = kp_lookup.get(kp_id)
+            if kp and kp.priority in ("critical", "high"):
+                issue = self._create_weak_issue(kp, formats)
+                if issue:
+                    issues.append(issue)
+        
+        # Add general clarity issues
+        for clarity_problem in evaluation.clarity_issues[:1]:  # Limit to 1
+            issues.append(ReviewIssue(
+                issue_id="",
+                type="clarity",
+                priority="medium",
+                problem=clarity_problem,
+                reason="Content uses abstract or unclear phrasing.",
+                suggestion="Use concrete language with cause-effect explanation.",
+                affects=["linkedin", "twitter", "newsletter"],
+                missing_kps=[]
+            ))
+        
+        # Add consistency issue if any
+        if evaluation.consistency_issue:
+            issues.append(ReviewIssue(
+                issue_id="",
+                type="consistency",
+                priority="high",
+                problem=evaluation.consistency_issue,
+                reason="Formats contain contradictory information.",
+                suggestion="Ensure consistent messaging across all formats.",
+                affects=["linkedin", "twitter", "newsletter"],
+                missing_kps=[]
+            ))
+        
+        # --- STEP 3: Finalize ---
+        return self._finalize_issues(issues)
 
-        # Run deterministic checks
-        deterministic_issues = self._run_deterministic_checks(formatted, summary)
-
-        # Format content for review
-        linkedin_text = f"LINKEDIN:\n{formatted.linkedin.content}\nUsed KPs: {formatted.linkedin.used_kps}"
+    def _evaluate_content(
+        self,
+        summary: SummaryOutput,
+        formatted: FormattedOutput,
+    ) -> Optional[ContentEvaluation]:
+        """
+        Use LLM to evaluate each KP in each format.
+        Returns structured evaluation or None if LLM fails.
+        """
+        # Build content text
+        linkedin_text = f"LINKEDIN:\n{formatted.linkedin.content}"
         
         twitter_text = "TWITTER:\n"
         for i, tweet in enumerate(formatted.twitter.tweets):
-            char_count = len(tweet)
-            status = "OK" if char_count <= 240 else f"TOO LONG ({char_count} chars)"
-            twitter_text += f"{i+1}. [{status}] {tweet}\n"
-        twitter_text += f"Used KPs: {formatted.twitter.used_kps}"
+            twitter_text += f"{i+1}. {tweet}\n"
         
-        newsletter_text = f"NEWSLETTER:\n{formatted.newsletter.content}\nUsed KPs: {formatted.newsletter.used_kps}"
+        newsletter_text = f"NEWSLETTER:\n{formatted.newsletter.content}"
 
-        # Coverage analysis
-        all_used = set(
-            formatted.linkedin.used_kps + 
-            formatted.twitter.used_kps + 
-            formatted.newsletter.used_kps
-        )
-        missing_kps = [kp for kp in kp_ids if kp not in all_used]
-        missing_critical = [kp for kp in critical_kps if kp not in all_used]
+        # Build key points list
+        kp_entries = []
+        for kp in summary.key_points:
+            entry = f"- **{kp.id}** [{kp.priority.upper()}]: {kp.label}"
+            if kp.data:
+                entry += f" (Data: {kp.data})"
+            kp_entries.append(entry)
+        kp_text = "\n".join(kp_entries)
 
-        coverage_text = f"""
-COVERAGE ANALYSIS:
-- All KPs: {kp_ids}
-- Critical KPs: {critical_kps}
-- Used: {list(all_used)}
-- Missing: {missing_kps}
-- Missing Critical: {missing_critical}
-"""
-
-        # Deterministic issues text
-        det_issues_text = ""
-        if deterministic_issues:
-            det_issues_text = "\n## ALREADY FOUND (include in output):\n"
-            for issue in deterministic_issues:
-                det_issues_text += f"- {issue.issue_id}: [{issue.priority.upper()}] {issue.problem} (target: {issue.target})\n"
-
-        user_prompt = f"""Review this content and find issues.
-
-## KEY POINTS TO CHECK
-{kp_text}
-{coverage_text}
-
-## CONTENT TO REVIEW
+        user_prompt = f"""## CONTENT TO EVALUATE
 
 {linkedin_text}
 
@@ -192,244 +243,157 @@ COVERAGE ANALYSIS:
 
 {newsletter_text}
 
-{det_issues_text}
+---
+
+## CORE MESSAGE
+{summary.core_message}
+
+---
+
+## KEY POINTS TO CHECK
+
+{kp_text}
+
+---
 
 ## YOUR TASK
 
-Find SPECIFIC issues with the content. For each issue:
+For EACH key point listed above, evaluate its presence and quality in EACH format.
 
-1. Identify the problem clearly
-2. Explain why it matters
-3. Give a specific suggestion to fix it
+Be STRICT:
+- If a key point is only vaguely mentioned, mark as "weak"
+- If a key point's core idea is not expressed, mark as "missing"
+- Don't assume presence just because related words appear
 
-Check for:
-1. COVERAGE: Are critical KPs ({critical_kps}) used? Any missing?
-2. CONSTRAINTS: Tweets ≤240 chars? LinkedIn has hook?
-3. STRUCTURE: Good hook? Clear flow? Proper sections?
-4. CLARITY: Any repetition? Weak phrasing?
+Return the evaluation JSON."""
 
-Return JSON with issues array. Include any deterministic issues found above."""
-
-        result = self.llm.generate(
-            system_prompt=self.system_prompt,
-            user_prompt=user_prompt,
-            output_schema=ReviewOutput,
-            temperature=0.3,
-        )
-
-        # Merge deterministic issues
-        result = self._merge_issues(result, deterministic_issues)
-
-        return result
-
-    def _run_deterministic_checks(
-        self,
-        formatted: FormattedOutput,
-        summary: SummaryOutput,
-    ) -> List[ReviewIssue]:
-        """Run rule-based checks that don't need LLM."""
-        issues = []
-        issue_count = 0
-        
-        # Check tweet lengths
-        for i, tweet in enumerate(formatted.twitter.tweets):
-            if len(tweet) > 240:
-                issue_count += 1
-                issues.append(ReviewIssue(
-                    issue_id=f"issue_{issue_count}",
-                    target="twitter",
-                    type="constraint",
-                    problem=f"Tweet {i+1} too long ({len(tweet)} chars)",
-                    reason="Exceeds 240 character limit",
-                    suggestion=f"Shorten tweet {i+1} to under 240 characters",
-                    priority="critical",
-                    missing_kps=[]
-                ))
-        
-        # Check tweet count
-        if len(formatted.twitter.tweets) > 7:
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="twitter",
-                type="constraint",
-                problem=f"Too many tweets ({len(formatted.twitter.tweets)})",
-                reason="Maximum 7 tweets allowed",
-                suggestion="Reduce to 7 tweets by combining ideas",
-                priority="high",
-                missing_kps=[]
-            ))
-        
-        # Check coverage
-        kp_ids = [kp.id for kp in summary.key_points]
-        critical_kps = [kp.id for kp in summary.key_points if kp.priority == "critical"]
-        
-        all_used = set(
-            formatted.linkedin.used_kps +
-            formatted.twitter.used_kps +
-            formatted.newsletter.used_kps
-        )
-        
-        missing_critical = [kp for kp in critical_kps if kp not in all_used]
-        if missing_critical:
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="linkedin",  # Start with LinkedIn
-                type="coverage",
-                problem="Missing critical key points",
-                reason="Critical KPs must be included in content",
-                suggestion=f"Add content covering: {', '.join(missing_critical)}",
-                priority="critical",
-                missing_kps=missing_critical
-            ))
-        
-        # Check LinkedIn length (rough check)
-        linkedin_words = len(formatted.linkedin.content.split())
-        if linkedin_words < 80:
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="linkedin",
-                type="constraint",
-                problem=f"LinkedIn too short ({linkedin_words} words)",
-                reason="LinkedIn posts should be 100-150 words",
-                suggestion="Expand the post with more details from key points",
-                priority="high",
-                missing_kps=[]
-            ))
-        elif linkedin_words > 180:
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="linkedin",
-                type="constraint",
-                problem=f"LinkedIn too long ({linkedin_words} words)",
-                reason="LinkedIn posts should be 100-150 words",
-                suggestion="Trim the post to focus on most important points",
-                priority="medium",
-                missing_kps=[]
-            ))
-        
-        # Check LinkedIn structure - BULLET DUMP detection (NEW)
-        bullet_indicators = ['•', '→', '- ', '1.', '2.', '3.', '* ']
-        bullet_count = sum(formatted.linkedin.content.count(ind) for ind in bullet_indicators)
-        
-        if bullet_count >= 3:
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="linkedin",
-                type="structure",
-                problem="Content is a bullet dump, not narrative",
-                reason="Bullet lists feel like summaries, not lived insight. They reduce engagement.",
-                suggestion="Rewrite as narrative: 'Most teams get this wrong. They [problem]. What changed was [shift]...'",
-                priority="high",
-                missing_kps=[]
-            ))
-        
-        # Check LinkedIn structure - weak hook detection
-        linkedin_content = formatted.linkedin.content.lower()
-        weak_hook_patterns = [
-            "did you know",
-            "have you ever",
-            "is your",
-            "are you",
-            "in today's",
-            "it's important to",
-            "many people",
-            "we all know",
-            "here's how",
-            "here's what",
-            "unlock",
-            "transform your",
-            "the best teams"
-        ]
-        
-        first_line = formatted.linkedin.content.split('\n')[0].lower()
-        for pattern in weak_hook_patterns:
-            if first_line.startswith(pattern) or pattern in first_line[:50]:
-                issue_count += 1
-                # Find a data point to suggest
-                data_kp = next((kp for kp in summary.key_points if kp.data), None)
-                suggestion = "Lead with a specific data point"
-                if data_kp:
-                    suggestion = f"Lead with: '{data_kp.data}' from {data_kp.label}"
-                
-                issues.append(ReviewIssue(
-                    issue_id=f"issue_{issue_count}",
-                    target="linkedin",
-                    type="structure",
-                    problem="Weak hook - starts with generic pattern",
-                    reason=f"'{pattern}' openings don't stop the scroll",
-                    suggestion=suggestion,
-                    priority="high",
-                    missing_kps=[]
-                ))
-                break
-        
-        # Check newsletter for "In conclusion"
-        if "in conclusion" in formatted.newsletter.content.lower():
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="newsletter",
-                type="structure",
-                problem="Uses 'In conclusion'",
-                reason="Generic closing phrase reduces quality",
-                suggestion="Replace with actionable takeaway without 'In conclusion'",
-                priority="medium",
-                missing_kps=[]
-            ))
-        
-        # Check for cause-effect in LinkedIn (should have "because", "so that", etc.)
-        cause_effect_indicators = ['because', 'so that', 'which means', 'the result', 'that\'s why']
-        has_cause_effect = any(ind in linkedin_content for ind in cause_effect_indicators)
-        
-        if not has_cause_effect and bullet_count < 3:  # Only flag if not already bullet dump
-            issue_count += 1
-            issues.append(ReviewIssue(
-                issue_id=f"issue_{issue_count}",
-                target="linkedin",
-                type="clarity",
-                problem="Missing cause-effect explanations",
-                reason="Content states WHAT but not WHY. Insights need explanation.",
-                suggestion="Add 'because' or 'which means' to explain why each insight matters",
-                priority="medium",
-                missing_kps=[]
-            ))
-        
-        return issues
-
-    def _merge_issues(
-        self,
-        result: ReviewOutput,
-        deterministic_issues: List[ReviewIssue]
-    ) -> ReviewOutput:
-        """Merge deterministic issues with LLM-found issues."""
-        # Get existing issue IDs to avoid duplicates
-        existing_ids = {issue.issue_id for issue in result.issues}
-        
-        # Add deterministic issues that aren't already present
-        for det_issue in deterministic_issues:
-            # Check if similar issue exists
-            is_duplicate = any(
-                issue.target == det_issue.target and 
-                issue.type == det_issue.type and
-                issue.problem.lower() in det_issue.problem.lower() or 
-                det_issue.problem.lower() in issue.problem.lower()
-                for issue in result.issues
+        try:
+            result = self.llm.generate(
+                system_prompt=EVALUATION_PROMPT,
+                user_prompt=user_prompt,
+                output_schema=ContentEvaluation,
+                temperature=0.2,
             )
-            
-            if not is_duplicate and det_issue.issue_id not in existing_ids:
-                result.issues.append(det_issue)
+            return result
+        except Exception:
+            return None
+
+    def _create_coverage_issue(
+        self, 
+        kp: KeyPoint, 
+        missing_formats: List[str]
+    ) -> Optional[ReviewIssue]:
+        """
+        Create a coverage issue based on key point priority and missing formats.
         
-        # Re-number issues
-        for i, issue in enumerate(result.issues):
-            issue.issue_id = f"issue_{i + 1}"
+        Rules:
+        - critical + missing anywhere → CRITICAL issue
+        - high + missing in 2+ formats → HIGH issue
+        - medium + missing in 2+ formats → MEDIUM issue
+        """
+        num_missing = len(missing_formats)
+        
+        if kp.priority == "critical" and num_missing >= 1:
+            priority = "critical"
+        elif kp.priority == "high" and num_missing >= 2:
+            priority = "high"
+        elif kp.priority == "medium" and num_missing >= 2:
+            priority = "medium"
+        else:
+            return None
+
+        formats_str = ", ".join(missing_formats)
+        
+        return ReviewIssue(
+            issue_id="",
+            type="coverage",
+            priority=priority,
+            problem=f"{kp.label} is missing in: {formats_str}",
+            reason=f"This {kp.priority}-priority insight is not represented in {num_missing} format(s), leading to inconsistent messaging.",
+            suggestion=f"Ensure '{kp.label}' is clearly included in: {formats_str}.",
+            affects=missing_formats,
+            missing_kps=[kp.id]
+        )
+
+    def _create_weak_issue(
+        self, 
+        kp: KeyPoint, 
+        weak_formats: List[str]
+    ) -> Optional[ReviewIssue]:
+        """
+        Create a clarity issue for weakly expressed key point.
+        
+        Rules:
+        - critical KP weak → HIGH priority
+        - high KP weak → MEDIUM priority
+        """
+        if kp.priority == "critical":
+            priority = "high"
+        elif kp.priority == "high":
+            priority = "medium"
+        else:
+            return None  # Don't flag medium priority KPs
+
+        formats_str = ", ".join(weak_formats)
+        
+        return ReviewIssue(
+            issue_id="",
+            type="clarity",
+            priority=priority,
+            problem=f"'{kp.label}' is weakly expressed in: {formats_str}",
+            reason=f"This {kp.priority}-priority key point is mentioned but not explained with sufficient clarity or cause-effect.",
+            suggestion=f"Strengthen the explanation of '{kp.label}' with concrete details and cause-effect reasoning.",
+            affects=weak_formats,
+            missing_kps=[kp.id]
+        )
+
+    def _create_empty_review(self) -> ReviewOutput:
+        """Create empty review when LLM fails."""
+        return ReviewOutput(
+            issues=[],
+            summary=ReviewSummary(total_issues=0, critical=0, high=0, medium=0),
+            status="ok"
+        )
+
+    def _finalize_issues(self, issues: List[ReviewIssue]) -> ReviewOutput:
+        """Sort, deduplicate, limit, and finalize issues."""
+        # Deduplicate issues (same type + affects + missing_kps)
+        seen = set()
+        unique_issues = []
+        for issue in issues:
+            key = (
+                issue.type,
+                tuple(sorted(issue.affects)) if issue.affects else (),
+                tuple(sorted(issue.missing_kps)) if issue.missing_kps else ()
+            )
+            if key not in seen:
+                seen.add(key)
+                unique_issues.append(issue)
         
         # Sort by priority
-        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        result.issues.sort(key=lambda x: priority_order.get(x.priority, 4))
+        priority_order = {"critical": 0, "high": 1, "medium": 2}
+        unique_issues.sort(key=lambda x: priority_order.get(x.priority, 3))
         
-        return result
+        # Limit to max 3 issues
+        unique_issues = unique_issues[:3]
+        
+        # Assign issue IDs
+        for i, issue in enumerate(unique_issues):
+            issue.issue_id = f"issue_{i + 1}"
+        
+        # Build summary
+        summary = ReviewSummary(
+            total_issues=len(unique_issues),
+            critical=len([i for i in unique_issues if i.priority == "critical"]),
+            high=len([i for i in unique_issues if i.priority == "high"]),
+            medium=len([i for i in unique_issues if i.priority == "medium"])
+        )
+        
+        # Determine status
+        status = "needs_fixes" if unique_issues else "ok"
+        
+        return ReviewOutput(
+            issues=unique_issues,
+            summary=summary,
+            status=status
+        )

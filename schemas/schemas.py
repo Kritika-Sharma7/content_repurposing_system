@@ -135,26 +135,35 @@ class ReviewIssue(BaseModel):
     A specific, actionable issue found by reviewer.
     """
     issue_id: str = Field(description="Unique ID (e.g., 'issue_1')")
-    target: Literal["linkedin", "twitter", "newsletter"] = Field(
-        description="Which platform has the issue"
-    )
-    type: Literal["structure", "coverage", "constraint", "clarity"] = Field(
+    type: Literal["coverage", "consistency", "clarity"] = Field(
         description="Category of issue"
     )
-    problem: str = Field(description="What's wrong (e.g., 'Weak hook')")
+    priority: Literal["critical", "high", "medium"] = Field(
+        description="How important to fix"
+    )
+    problem: str = Field(description="What's wrong")
     reason: str = Field(
-        description="Why it's a problem (e.g., 'Does not create curiosity')"
+        description="Why it's a problem (specific)"
     )
     suggestion: str = Field(
-        description="How to fix it (e.g., 'Use data-driven hook')"
+        description="Direction on how to fix (NOT rewrite)"
     )
-    priority: Literal["critical", "high", "medium", "low"] = Field(
-        description="How important to fix"
+    affects: List[str] = Field(
+        default_factory=list,
+        description="Platforms affected by this issue"
     )
     missing_kps: List[str] = Field(
         default_factory=list,
         description="Missing key point IDs (for coverage issues)"
     )
+
+
+class ReviewSummary(BaseModel):
+    """Summary of review issues."""
+    total_issues: int = Field(description="Total number of issues found")
+    critical: int = Field(description="Number of critical issues") 
+    high: int = Field(description="Number of high priority issues")
+    medium: int = Field(description="Number of medium priority issues")
 
 
 class ReviewOutput(BaseModel):
@@ -165,6 +174,10 @@ class ReviewOutput(BaseModel):
     issues: List[ReviewIssue] = Field(
         description="List of specific, actionable issues"
     )
+    summary: ReviewSummary = Field(description="Issue summary")
+    status: Literal["ok", "needs_fixes"] = Field(
+        description="Overall status"
+    )
     
     def get_critical_issues(self) -> List[ReviewIssue]:
         """Get critical priority issues."""
@@ -172,7 +185,7 @@ class ReviewOutput(BaseModel):
     
     def get_issues_by_target(self, target: str) -> List[ReviewIssue]:
         """Get issues for a specific platform."""
-        return [i for i in self.issues if i.target == target]
+        return [i for i in self.issues if target in i.affects]
     
     def get_coverage_issues(self) -> List[ReviewIssue]:
         """Get all coverage issues."""

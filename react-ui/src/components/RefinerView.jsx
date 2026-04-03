@@ -1,26 +1,34 @@
 import AgentCard from "./AgentCard";
 
-export default function RefinerView({ v1, v2, loading }) {
+export default function RefinerView({ v1, v2, reviewData, loading }) {
   const changeRecords = v2?.changes || [];
-  const v1LinkedIn = v1?.linkedin?.content || "N/A";
-  const v2LinkedIn = v2?.linkedin?.content || "N/A";
-  
+  const issuesFound = reviewData?.issues?.length || 0;
+  const issuesFixed = changeRecords.length;
+
   return (
     <AgentCard
       title="Agent 4: Refiner"
-      subtitle="Applies reviewer issues and tracks visible changes"
+      subtitle="Applied Improvements"
       status={loading ? "running" : "complete"}
     >
-      <div className="feedback-loop">Reviewer → Refiner → Updated Output</div>
+      <div className="feedback-loop">V1 → V2</div>
 
-      <div className="split-grid">
-        <div className="card inset">
-          <h4>Version 1 (Before)</h4>
-          <p>{v1LinkedIn}</p>
+      <div className="score-grid-4">
+        <div className="score-box">
+          <span>Issues Found</span>
+          <strong>{issuesFound}</strong>
         </div>
-        <div className="card inset">
-          <h4>Version 2 (After)</h4>
-          <p>{v2LinkedIn}</p>
+        <div className="score-box">
+          <span>Issues Fixed</span>
+          <strong>{issuesFixed}</strong>
+        </div>
+        <div className="score-box">
+          <span>Iterations</span>
+          <strong>1</strong>
+        </div>
+        <div className="score-box">
+          <span>Status</span>
+          <strong>{issuesFixed === issuesFound ? "Complete" : "Partial"}</strong>
         </div>
       </div>
 
@@ -28,14 +36,13 @@ export default function RefinerView({ v1, v2, loading }) {
         <div className="badge-group">
           <h4>Change Records (Traceable)</h4>
           <div className="change-records">
-            {changeRecords.map((change) => (
-              <div key={`${change.issue_id}-${change.target}`} className="change-record">
+            {changeRecords.map((change, index) => (
+              <div key={`change-${index}`} className="change-record">
                 <div className="change-header">
                   <span className={`pill ${change.action === "add" ? "success" : "info"}`}>
                     {(change.action || "rewrite").toUpperCase()}
                   </span>
-                  <span className="change-location">{(change.target || "").replace("_", " ")}</span>
-                  <span className="change-issue">[{change.issue_id}]</span>
+                  <span className="change-location">{(change.target || "").replace(/_/g, " ")}</span>
                 </div>
                 <p><strong>Before:</strong> {change.before}</p>
                 <p><strong>After:</strong> {change.after}</p>

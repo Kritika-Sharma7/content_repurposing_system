@@ -1,16 +1,17 @@
 """
 Pipeline Orchestrator: Coordinates the multi-agent workflow.
 
-CLEAN DESIGN v4:
-Flow: Summarizer -> Formatter -> Reviewer -> Refiner
-- No scores, just issue-driven feedback
-- Simple iteration until no critical issues remain
+CLEAN DESIGN v6:
+Flow: Summarizer -> Formatter -> [Reviewer <-> Refiner] loop -> Final Output
+- True iterative feedback loop
+- Stop conditions: no issues, no changes, max iterations
+- Versioning: V1 -> V2 -> V3 -> ...
 """
 
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from agents.summarizer import SummarizerAgent
 from agents.formatter import FormatterAgent
@@ -27,14 +28,15 @@ from config.user_preferences import UserPreferences, DEFAULT_USER_PREFERENCES
 
 class PipelineOrchestrator:
     """
-    Orchestrates the multi-agent content pipeline.
+    Orchestrates the multi-agent content pipeline with iterative refinement.
 
     Flow:
     1. Summarizer: Raw content -> core_message + key_points
     2. Formatter: key_points -> platform content (V1)
-    3. Reviewer: V1 -> issues
-    4. Refiner: V1 + issues -> V2
-    5. Loop: Review V2, refine if critical issues remain
+    3. Feedback Loop:
+       - Reviewer: Current version -> issues
+       - Refiner: Current version + issues -> Next version
+       - Repeat until: no issues, no changes, or max iterations
     """
 
     def __init__(
@@ -66,7 +68,7 @@ class PipelineOrchestrator:
         user_preferences: Optional[UserPreferences] = None,
     ) -> PipelineResult:
         """
-        Execute the full pipeline.
+        Execute the full pipeline with iterative refinement.
 
         Args:
             content: Raw text to process
@@ -81,100 +83,144 @@ class PipelineOrchestrator:
         self._log(f"Input: {len(content.split())} words")
 
         # Stage 1: Summarize
-        self._log("Stage 1/4: Extracting key points...")
+        self._log("Stage 1: Extracting key points...")
         summary = self.summarizer.run(content, prefs)
         self._log(f"  [OK] Extracted {len(summary.key_points)} key points")
         self._log(f"  Core: {summary.core_message[:60]}...")
 
-        # Stage 2: Format
-        self._log("Stage 2/4: Formatting for platforms...")
+        # Stage 2: Format (V1)
+        self._log("Stage 2: Formatting for platforms...")
         v1 = self.formatter.run(summary, prefs, prefs.platforms)
         self._log(f"  [OK] LinkedIn: {len(v1.linkedin.content.split())} words")
         self._log(f"  [OK] Twitter: {len(v1.twitter.tweets)} tweets")
         self._log(f"  [OK] Newsletter: {len(v1.newsletter.content.split())} words")
 
-        # Stage 3: Review
-        self._log("Stage 3/4: Reviewing content...")
-        review = self.reviewer.run(summary, v1)
-        critical_count = len([i for i in review.issues if i.priority == "critical"])
-        high_count = len([i for i in review.issues if i.priority == "high"])
-        self._log(f"  [OK] Found {len(review.issues)} issues ({critical_count} critical, {high_count} high)")
-
-        # Stage 4: Refine (iterate if needed)
+        # Stage 3: Feedback Loop (Review <-> Refine)
+        self._log("Stage 3: Feedback loop starting...")
+        
+        current_output: Union[FormattedOutput, RefinedOutput] = v1
         iterations: List[IterationResult] = []
-        current_v = v1
-        current_review = review
+        total_issues = 0
+        total_fixed = 0
+        final_review: Optional[ReviewOutput] = None
+        final_refined: Optional[RefinedOutput] = None
         
         for iteration in range(1, self.max_iterations + 1):
-            # Check if refinement needed
-            critical_issues = [i for i in current_review.issues if i.priority == "critical"]
+            self._log(f"  --- Iteration {iteration}/{self.max_iterations} ---")
             
-            if not critical_issues and iteration > 1:
-                self._log(f"  No critical issues remaining, stopping.")
+            # Review current output
+            self._log(f"  Reviewing V{iteration}...")
+            review = self.reviewer.run(summary, current_output)
+            final_review = review
+            
+            issues_count = len(review.issues)
+            total_issues += issues_count
+            self._log(f"  [OK] Found {issues_count} issues (status: {review.status})")
+            
+            # STOP CONDITION 1: No issues
+            if review.status == "ok" or issues_count == 0:
+                self._log(f"  [OK] No issues found - stopping loop")
+                # Create unchanged output for final version
+                final_refined = self._create_refined_from_current(current_output, iteration + 1)
+                iterations.append(IterationResult(
+                    iteration=iteration,
+                    review=review,
+                    refined=None,
+                    issues_fixed=0
+                ))
                 break
             
-            self._log(f"Stage 4: Refinement iteration {iteration}...")
+            # Refine based on review
+            self._log(f"  Refining to V{iteration + 1}...")
+            refined = self.refiner.run(summary, current_output, review)
+            final_refined = refined
             
-            # Refine
-            refined = self.refiner.run(summary, current_v, current_review)
-            self._log(f"  [OK] Made {len(refined.changes)} changes")
+            changes_count = len(refined.changes)
+            total_fixed += changes_count
+            self._log(f"  [OK] Made {changes_count} changes")
             
-            # Convert refined to formatted for next review
-            current_v = FormattedOutput(
-                version=refined.version,
-                linkedin=refined.linkedin,
-                twitter=refined.twitter,
-                newsletter=refined.newsletter
-            )
-            
-            # Review again
-            current_review = self.reviewer.run(summary, current_v)
-            new_critical = len([i for i in current_review.issues if i.priority == "critical"])
-            self._log(f"  [OK] {new_critical} critical issues remaining")
-            
-            # Record iteration
+            # Track iteration
             iterations.append(IterationResult(
                 iteration=iteration,
-                review=current_review,
+                review=review,
                 refined=refined,
-                issues_fixed=len(refined.changes)
+                issues_fixed=changes_count
             ))
             
-            if new_critical == 0:
-                self._log(f"  All critical issues resolved!")
+            # STOP CONDITION 2: No changes made
+            if changes_count == 0:
+                self._log(f"  [WARN] No changes made - stopping loop")
                 break
-        
-        # Build final v2
-        if iterations:
-            v2 = iterations[-1].refined
-        else:
-            # No refinement needed
-            v2 = RefinedOutput(
-                version=2,
-                changes=[],
-                linkedin=v1.linkedin,
-                twitter=v1.twitter,
-                newsletter=v1.newsletter
-            )
+            
+            # STOP CONDITION 3: Content unchanged (detect no-op refinement)
+            if self._content_unchanged(current_output, refined):
+                self._log(f"  [WARN] Content unchanged - stopping loop")
+                break
+            
+            # Update current output for next iteration
+            current_output = refined
+            
+            self._log(f"  V{iteration + 1} ready")
 
-        total_issues = len(review.issues)
-        issues_fixed = sum(it.issues_fixed for it in iterations)
+        # Ensure we have final outputs
+        if final_refined is None:
+            final_refined = self._create_refined_from_current(current_output, len(iterations) + 1)
         
+        if final_review is None:
+            # This shouldn't happen, but safety check
+            final_review = self.reviewer.run(summary, current_output)
+
         self._log("=" * 50)
         self._log("Pipeline complete!")
-        self._log(f"  Total issues: {total_issues}")
-        self._log(f"  Issues fixed: {issues_fixed}")
         self._log(f"  Iterations: {len(iterations)}")
+        self._log(f"  Total issues found: {total_issues}")
+        self._log(f"  Total issues fixed: {total_fixed}")
+        self._log(f"  Final version: V{final_refined.version}")
         self._log("=" * 50)
 
         return PipelineResult(
             summary=summary,
             v1=v1,
-            review=review,
-            v2=v2,
+            review=final_review,
+            v2=final_refined,
             iterations=iterations,
             total_issues=total_issues,
-            issues_fixed=issues_fixed
+            issues_fixed=total_fixed
+        )
+
+    def _content_unchanged(
+        self, 
+        before: Union[FormattedOutput, RefinedOutput], 
+        after: RefinedOutput
+    ) -> bool:
+        """Check if content is unchanged between versions."""
+        return (
+            before.linkedin.content == after.linkedin.content and
+            before.twitter.tweets == after.twitter.tweets and
+            before.newsletter.content == after.newsletter.content
+        )
+
+    def _create_refined_from_current(
+        self, 
+        current: Union[FormattedOutput, RefinedOutput],
+        version: int
+    ) -> RefinedOutput:
+        """Create a RefinedOutput from current output when no refinement needed."""
+        return RefinedOutput(
+            version=version,
+            changes=[],
+            linkedin=LinkedInOutput(
+                content=current.linkedin.content,
+                used_kps=current.linkedin.used_kps
+            ),
+            twitter=TwitterOutput(
+                tweets=current.twitter.tweets,
+                used_kps=current.twitter.used_kps
+            ),
+            newsletter=NewsletterOutput(
+                content=current.newsletter.content,
+                used_kps=current.newsletter.used_kps
+            )
         )
 
     def save_results(

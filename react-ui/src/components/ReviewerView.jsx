@@ -2,31 +2,30 @@ import AgentCard from "./AgentCard";
 
 export default function ReviewerView({ review, loading }) {
   const issues = review?.issues || [];
-  const criticalIssues = issues.filter((issue) => issue.priority === "critical");
-  const highIssues = issues.filter((issue) => issue.priority === "high");
+  const summary = review?.summary || { total_issues: 0, critical: 0, high: 0, medium: 0 };
 
   return (
     <AgentCard
       title="Agent 3: Reviewer"
-      subtitle="Actionable issue-based review"
+      subtitle="Quality Check Summary"
       status={loading ? "running" : "complete"}
     >
       <div className="score-grid-4">
         <div className="score-box">
           <span>Total Issues</span>
-          <strong>{issues.length}</strong>
+          <strong>{summary.total_issues}</strong>
         </div>
         <div className="score-box">
           <span>Critical</span>
-          <strong>{criticalIssues.length}</strong>
+          <strong>{summary.critical}</strong>
         </div>
         <div className="score-box">
           <span>High</span>
-          <strong>{highIssues.length}</strong>
+          <strong>{summary.high}</strong>
         </div>
         <div className="score-box">
           <span>Status</span>
-          <strong>{issues.length > 0 ? "Needs Fixes" : "Clean"}</strong>
+          <strong>{review?.status === "ok" ? "Clean" : "Needs Fixes"}</strong>
         </div>
       </div>
 
@@ -34,7 +33,7 @@ export default function ReviewerView({ review, loading }) {
         <div className="badge-group">
           <h4>Issues</h4>
           {issues.map((issue, index) => (
-            <div key={`${issue.issue_id}-${index}`} className={`issue-card ${issue.priority}`}>
+            <div key={`issue-${index}`} className={`issue-card ${issue.priority}`}>
               <div className="issue-header">
                 <span
                   className={`pill ${
@@ -48,13 +47,12 @@ export default function ReviewerView({ review, loading }) {
                   {issue.priority?.toUpperCase() || "MEDIUM"}
                 </span>
                 <span className="issue-type">{issue.type || "issue"}</span>
-                <span className="issue-id">[{issue.issue_id}]</span>
               </div>
               <p><strong>Problem:</strong> {issue.problem}</p>
               <p><strong>Reason:</strong> {issue.reason}</p>
               <p><strong>Suggestion:</strong> {issue.suggestion}</p>
               <div className="issue-meta">
-                <span>Affects: {issue.target}</span>
+                <span>Affects: {Array.isArray(issue.affects) ? issue.affects.join(", ") : "Multiple"}</span>
                 {issue.missing_kps && issue.missing_kps.length > 0 && (
                   <span className="insight-ref">Missing: {issue.missing_kps.join(", ")}</span>
                 )}
