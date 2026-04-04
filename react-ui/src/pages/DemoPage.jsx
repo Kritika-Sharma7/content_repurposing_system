@@ -10,7 +10,8 @@ import TwitterThread from "../components/PlatformPreview/TwitterThread";
 import NewsletterView from "../components/PlatformPreview/NewsletterView";
 import { sampleInput } from "../data/samplePipeline";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+console.log("API_BASE:", API_BASE);
 
 export default function DemoPage() {
   const [inputText, setInputText] = useState("");

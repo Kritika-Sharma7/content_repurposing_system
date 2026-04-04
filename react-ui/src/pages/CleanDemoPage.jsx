@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const SAMPLE_INPUT = `The Future of Remote Work: Lessons from Five Years of Distributed Teams
 
