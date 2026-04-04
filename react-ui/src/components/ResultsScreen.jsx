@@ -156,7 +156,8 @@ export default function ResultsScreen({
         
         {activeTab === "review" && (
           <ReviewTab 
-            review={result.review}
+            review={result.review_v2 || result.review}
+            iterations={result.iterations}
           />
         )}
         

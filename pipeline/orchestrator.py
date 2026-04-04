@@ -11,7 +11,7 @@ Flow: Summarizer -> Formatter -> [Reviewer <-> Refiner] loop -> Final Output
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 
 from agents.summarizer import SummarizerAgent
 from agents.formatter import FormatterAgent
@@ -43,7 +43,7 @@ class PipelineOrchestrator:
         self,
         llm_client: Optional[LLMClient] = None,
         verbose: bool = True,
-        max_iterations: int = 2,
+        max_iterations: int = 5,
         settings: Optional[dict] = None,
         platform_config: Optional[dict] = None,
     ):
@@ -102,7 +102,10 @@ class PipelineOrchestrator:
         iterations: List[IterationResult] = []
         total_issues = 0
         total_fixed = 0
-        final_review: Optional[ReviewOutput] = None
+        
+        # Initialize all version tracking
+        all_reviews: Dict[int, ReviewOutput] = {}
+        all_versions: Dict[int, Union[FormattedOutput, RefinedOutput]] = {1: v1}
         final_refined: Optional[RefinedOutput] = None
         
         for iteration in range(1, self.max_iterations + 1):
@@ -111,7 +114,9 @@ class PipelineOrchestrator:
             # Review current output
             self._log(f"  Reviewing V{iteration}...")
             review = self.reviewer.run(summary, current_output)
-            final_review = review
+            
+            # Store all reviews
+            all_reviews[iteration] = review
             
             issues_count = len(review.issues)
             total_issues += issues_count
@@ -120,8 +125,13 @@ class PipelineOrchestrator:
             # STOP CONDITION 1: No issues
             if review.status == "ok" or issues_count == 0:
                 self._log(f"  [OK] No issues found - stopping loop")
-                # Create unchanged output for final version
-                final_refined = self._create_refined_from_current(current_output, iteration + 1)
+                # Create unchanged output for final version if not already final
+                if iteration < self.max_iterations:
+                    final_refined = self._create_refined_from_current(current_output, iteration + 1)
+                    all_versions[iteration + 1] = final_refined
+                else:
+                    final_refined = current_output if isinstance(current_output, RefinedOutput) else None
+                
                 iterations.append(IterationResult(
                     iteration=iteration,
                     review=review,
@@ -134,6 +144,9 @@ class PipelineOrchestrator:
             self._log(f"  Refining to V{iteration + 1}...")
             refined = self.refiner.run(summary, current_output, review)
             final_refined = refined
+            
+            # Store this version
+            all_versions[iteration + 1] = refined
             
             changes_count = len(refined.changes)
             total_fixed += changes_count
@@ -166,23 +179,33 @@ class PipelineOrchestrator:
         if final_refined is None:
             final_refined = self._create_refined_from_current(current_output, len(iterations) + 1)
         
-        if final_review is None:
-            # This shouldn't happen, but safety check
-            final_review = self.reviewer.run(summary, current_output)
+        # Extract individual version data from tracked versions
+        v2_data = all_versions.get(2) if isinstance(all_versions.get(2), RefinedOutput) else None
+        v3_data = all_versions.get(3) if isinstance(all_versions.get(3), RefinedOutput) else None
+        v4_data = all_versions.get(4) if isinstance(all_versions.get(4), RefinedOutput) else None
+        v5_data = all_versions.get(5) if isinstance(all_versions.get(5), RefinedOutput) else None
 
         self._log("=" * 50)
         self._log("Pipeline complete!")
         self._log(f"  Iterations: {len(iterations)}")
         self._log(f"  Total issues found: {total_issues}")
         self._log(f"  Total issues fixed: {total_fixed}")
-        self._log(f"  Final version: V{final_refined.version}")
+        max_version = max(all_versions.keys())
+        self._log(f"  Final version: V{max_version}")
         self._log("=" * 50)
 
         return PipelineResult(
             summary=summary,
             v1=v1,
-            review=final_review,
-            v2=final_refined,
+            review_v1=all_reviews.get(1),
+            v2=v2_data,
+            review_v2=all_reviews.get(2),
+            v3=v3_data,
+            review_v3=all_reviews.get(3),
+            v4=v4_data,
+            review_v4=all_reviews.get(4),
+            v5=v5_data,
+            review_v5=all_reviews.get(5),
             iterations=iterations,
             total_issues=total_issues,
             issues_fixed=total_fixed
@@ -279,6 +302,11 @@ class PipelineOrchestrator:
         print("V1 vs V2 COMPARISON")
         print("=" * 60)
         
+        print("\n--- REVIEW V1 ---")
+        print(f"Issues found: {len(result.review_v1.issues)}")
+        for issue in result.review_v1.issues[:3]:
+            print(f"  [{issue.priority}] {issue.problem}")
+        
         print("\n--- LINKEDIN ---")
         print(f"V1: {result.v1.linkedin.content[:100]}...")
         print(f"V2: {result.v2.linkedin.content[:100]}...")
@@ -290,5 +318,9 @@ class PipelineOrchestrator:
         print("\n--- CHANGES ---")
         for change in result.v2.changes[:5]:
             print(f"  [{change.issue_id}] {change.action} {change.target}")
+        
+        print("\n--- REVIEW V2 ---")
+        print(f"Issues found: {len(result.review_v2.issues)}")
+        print(f"Status: {result.review_v2.status}")
         
         print("=" * 60)

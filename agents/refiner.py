@@ -32,6 +32,16 @@ Key points must be STRONGLY expressed, not just mentioned.
 
 ---
 
+🔒 STRICT MODIFICATION RULE (CRITICAL)
+
+ONLY modify content that corresponds to reviewer issues.
+DO NOT change any content unrelated to the issues.
+DO NOT improve anything that is not explicitly flagged.
+
+If a format is NOT listed in issue.affects, DO NOT modify it.
+
+---
+
 🎯 STRONG EXPRESSION RULE (MANDATORY)
 
 When fixing any coverage or clarity issue:
@@ -197,6 +207,13 @@ class RefinerAgent:
         if not review.issues:
             return self._create_unchanged_output(formatted)
 
+        # Determine which formats need modification based on issues
+        affected_formats = set()
+        for issue in review.issues:
+            affected_formats.update(issue.affects)
+        
+        affected_formats_str = ", ".join(sorted(affected_formats))
+
         # Build key points reference with full details
         kp_lookup = {kp.id: kp for kp in summary.key_points}
         kp_text = "\n".join(
@@ -258,6 +275,9 @@ Suggestion: {issue.suggestion}"""
         newsletter_current = f"CONTENT:\n{newsletter_content}\nUSED_KPS: {newsletter_kps}"
 
         user_prompt = f"""Fix ALL issues with STRONG expression. Key points must be clearly explained, not just mentioned.
+
+⚠️ CRITICAL: ONLY modify formats listed in affected formats: {affected_formats_str}
+DO NOT change content in formats that are NOT in this list.
 
 ## ISSUES TO FIX ({len(sorted_issues)} total)
 {issues_text}

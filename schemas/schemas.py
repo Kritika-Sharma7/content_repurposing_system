@@ -8,7 +8,7 @@ CLEAN DESIGN v4:
 - Visible V1 → V2 improvements
 """
 
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -159,7 +159,7 @@ class ReviewIssue(BaseModel):
 
 
 class ReviewSummary(BaseModel):
-    """Summary of review issues."""
+    """Summary of review issues - deprecated, for backward compatibility only."""
     total_issues: int = Field(description="Total number of issues found")
     critical: int = Field(description="Number of critical issues") 
     high: int = Field(description="Number of high priority issues")
@@ -169,12 +169,11 @@ class ReviewSummary(BaseModel):
 class ReviewOutput(BaseModel):
     """
     Output from ReviewerAgent - ISSUES ONLY.
-    No scores, just actionable feedback.
+    No scores, just actionable feedback. No summary stats.
     """
     issues: List[ReviewIssue] = Field(
         description="List of specific, actionable issues"
     )
-    summary: ReviewSummary = Field(description="Issue summary")
     status: Literal["ok", "needs_fixes"] = Field(
         description="Overall status"
     )
@@ -246,11 +245,18 @@ class IterationResult(BaseModel):
 
 
 class PipelineResult(BaseModel):
-    """Final output from the complete pipeline."""
-    summary: SummaryOutput = Field(description="Extracted key points")
+    """Final output from the complete pipeline - supports multiple iterations up to V5."""
+    summary: SummaryOutput = Field(description="Extracted key points (truth source)")
     v1: FormattedOutput = Field(description="Initial formatted content")
-    review: ReviewOutput = Field(description="Review feedback")
-    v2: RefinedOutput = Field(description="Final refined content")
+    review_v1: ReviewOutput = Field(description="Review of V1 - initial issues detected")
+    v2: Optional[RefinedOutput] = Field(default=None, description="V2 refined content")
+    review_v2: Optional[ReviewOutput] = Field(default=None, description="Review of V2")
+    v3: Optional[RefinedOutput] = Field(default=None, description="V3 refined content")
+    review_v3: Optional[ReviewOutput] = Field(default=None, description="Review of V3")
+    v4: Optional[RefinedOutput] = Field(default=None, description="V4 refined content")
+    review_v4: Optional[ReviewOutput] = Field(default=None, description="Review of V4")
+    v5: Optional[RefinedOutput] = Field(default=None, description="V5 refined content")
+    review_v5: Optional[ReviewOutput] = Field(default=None, description="Review of V5")
     iterations: List[IterationResult] = Field(
         default_factory=list,
         description="Review-refine iterations"
@@ -494,6 +500,7 @@ __all__ = [
     "RefinedOutput",
     "IterationResult",
     "PipelineResult",
+    "ReviewSummary",  # Keep for legacy backward compatibility
     
     # Legacy (backward compatibility)
     "SemanticKeyPoint",

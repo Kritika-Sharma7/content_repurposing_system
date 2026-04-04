@@ -24,7 +24,7 @@ export default function RefinerView({ v1, v2, reviewData, loading }) {
         </div>
         <div className="score-box">
           <span>Iterations</span>
-          <strong>1</strong>
+          <strong>{changeRecords.length > 0 ? changeRecords.length : 'N/A'}</strong>
         </div>
         <div className="score-box">
           <span>Status</span>

@@ -16,14 +16,14 @@ body {
 
 /* Layout */
 .container {
-  max-width: 900px;
+  max-width: 1300px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 16px 24px;
 }
 
 .page {
   min-height: 100vh;
-  padding: 20px 20px 40px;
+  padding: 16px 24px 32px;
 }
 
 /* Typography */
@@ -188,20 +188,21 @@ p {
 /* Tabs */
 .tabs {
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   display: flex;
-  gap: 24px;
+  gap: 32px;
 }
 
 .tab {
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   color: #6b7280;
   border-bottom: 2px solid transparent;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .tab:hover {
@@ -211,25 +212,26 @@ p {
 .tab.active {
   color: #2563eb;
   border-bottom-color: #2563eb;
+  font-weight: 600;
 }
 
 .tab-content {
-  min-height: 400px;
+  min-height: 300px;
 }
 
 /* Cards */
 .card {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 18px 20px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.2s ease;
 }
 
 .card:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
   border-color: #d1d5db;
 }
 
@@ -480,16 +482,558 @@ p {
   margin-bottom: 8px;
 }
 
-/* Issues (Review Tab) */
+/* ============================================
+   OUTCOME TAB - Compact Professional Layout
+   ============================================ */
+
+.outcome-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.outcome-header {
+  margin-bottom: 16px;
+}
+
+.outcome-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+.outcome-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Platform Tabs */
+.platform-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 20px;
+}
+
+.platform-tab {
+  padding: 8px 0 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.platform-tab:hover {
+  color: #374151;
+}
+
+.platform-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+
+/* Content Section */
+.content-section {
+  max-width: 950px;
+}
+
+/* Action Bar */
+.action-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  justify-content: flex-start;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+/* LinkedIn Compact */
+.linkedin-preview-compact {
+  background: white;
+  border: 1px solid #dce0e5;
+  border-radius: 10px;
+  max-width: 900px;
+  overflow: hidden;
+}
+
+.linkedin-header-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+
+.avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #0a66c2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-info-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.user-info-compact .user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.user-info-compact .user-meta {
+  font-size: 12px;
+  color: #666;
+}
+
+.linkedin-body {
+  padding: 0 16px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+}
+
+.linkedin-actions {
+  display: flex;
+  gap: 24px;
+  padding: 10px 16px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 13px;
+  color: #666;
+}
+
+.linkedin-actions span {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.linkedin-actions span:hover {
+  color: #0a66c2;
+}
+
+/* Twitter Thread Compact */
+.tweet-thread-compact {
+  max-width: 950px;
+}
+
+.tweet-item {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.tweet-left-border {
+  width: 3px;
+  background: #e1e8ed;
+  border-radius: 2px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.tweet-item:first-child .tweet-left-border {
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+
+.tweet-item:last-child .tweet-left-border {
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+.tweet-body {
+  flex: 1;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tweet-item:last-child .tweet-body {
+  border-bottom: none;
+}
+
+.tweet-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.tweet-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-xs {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1a1a1a;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tweet-user .user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f1419;
+}
+
+.tweet-user .user-handle {
+  font-size: 13px;
+  color: #536471;
+}
+
+.tweet-count {
+  font-size: 12px;
+  color: #8899a6;
+  font-weight: 500;
+}
+
+.tweet-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #0f1419;
+  padding-left: 36px;
+}
+
+/* Newsletter Compact */
+.newsletter-compact {
+  display: flex;
+  max-width: 900px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.newsletter-accent {
+  width: 4px;
+  background: linear-gradient(180deg, #2563eb 0%, #3b82f6 100%);
+  flex-shrink: 0;
+}
+
+.newsletter-body {
+  flex: 1;
+  padding: 16px 20px;
+}
+
+.newsletter-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.newsletter-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.newsletter-tagline {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.newsletter-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.newsletter-text p {
+  margin: 0 0 12px 0;
+}
+
+.newsletter-text p:last-child {
+  margin-bottom: 0;
+}
+
+.newsletter-text .newsletter-heading {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 16px 0 8px 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.newsletter-text .newsletter-heading:first-child {
+  margin-top: 0;
+}
+
+.newsletter-text ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.newsletter-text li {
+  margin-bottom: 4px;
+}
+
+/* ============================================
+   REVIEW TAB - Compact Dashboard Layout
+   ============================================ */
+
+.review-container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Summary Bar - Compact inline header */
+.review-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.review-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.review-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.stat-item {
+  font-weight: 500;
+}
+
+.stat-divider {
+  color: #d1d5db;
+}
+
+/* Two-column grid */
+.review-grid {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Review Column Card */
+.review-column {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Column Header - Single row */
+.review-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.review-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-version {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.review-iteration {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.issue-count-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.issue-count-badge.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Scrollable Issues Container */
+.issues-scroll-container {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+/* Custom scrollbar */
+.issues-scroll-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.issues-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.issues-scroll-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+.issues-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* No issues state */
+.no-issues {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: #059669;
+  font-size: 14px;
+}
+
+.no-issues .check-icon {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Priority Groups */
+.priority-group {
+  margin-bottom: 16px;
+}
+
+.priority-group:last-child {
+  margin-bottom: 0;
+}
+
+.priority-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.priority-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-label.critical {
+  color: #DC2626;
+}
+
+.priority-label.high {
+  color: #EA580C;
+}
+
+.priority-label.medium {
+  color: #6B7280;
+}
+
+.priority-count {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Issue Cards - Compact with better spacing */
+.issue-card {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.issue-card:last-child {
+  margin-bottom: 0;
+}
+
+.issue-problem-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  line-height: 1.4;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.issue-suggestion-text {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* No review data */
+.no-review-data {
+  text-align: center;
+  padding: 32px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #6b7280;
+}
+
+/* Legacy styles - keep for compatibility */
 .issues-group {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .issues-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .priority-badge {
@@ -519,6 +1063,18 @@ p {
   background: transparent;
   color: #9ca3af;
   border-color: #e5e7eb;
+}
+
+.priority-success {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.priority-warning {
+  background: #fefce8;
+  color: #854d0e;
+  border-color: #fde047;
 }
 
 .issue-item {
@@ -609,6 +1165,314 @@ p {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* ============================================
+   REFINED TAB - Two-Column Layout
+   ============================================ */
+
+.refined-container {
+  max-width: 100%;
+}
+
+/* Header with version selector and platform tabs */
+.refined-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.version-selector {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.version-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.version-btn:hover {
+  color: #374151;
+}
+
+.version-btn.active {
+  background: white;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.platform-tabs-inline {
+  display: flex;
+  gap: 8px;
+}
+
+.platform-tab-sm {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6b7280;
+  transition: all 0.15s ease;
+}
+
+.platform-tab-sm:hover {
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.platform-tab-sm.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* Two-column layout */
+.refined-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Left column - Content */
+.refined-content-col {
+  min-width: 0;
+}
+
+/* Right column - Changes (sticky) */
+.refined-changes-col {
+  position: sticky;
+  top: 80px;
+}
+
+.changes-panel {
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.changes-panel-header {
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.changes-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.changes-panel-body {
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Custom scrollbar for changes panel */
+.changes-panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.changes-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.changes-panel-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* Change cards */
+.change-card {
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.change-card:last-child {
+  margin-bottom: 0;
+}
+
+.change-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.action-type {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  text-transform: lowercase;
+}
+
+.action-target {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.change-diff {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.diff-before {
+  color: #9ca3af;
+  margin-bottom: 4px;
+  padding-left: 10px;
+  border-left: 2px solid #e5e7eb;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.diff-after {
+  color: #059669;
+  font-weight: 500;
+  padding-left: 10px;
+  border-left: 2px solid #10b981;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Refined content cards */
+.refined-linkedin {
+  background: white;
+  border: 1px solid #dce0e5;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.refined-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+
+.refined-card-body {
+  padding: 0 16px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+}
+
+.refined-card-footer {
+  display: flex;
+  gap: 24px;
+  padding: 10px 16px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 13px;
+  color: #666;
+}
+
+/* Refined Twitter */
+.refined-twitter {
+  max-width: 100%;
+}
+
+.refined-tweet {
+  display: flex;
+  margin-bottom: 0;
+}
+
+.tweet-left-accent {
+  width: 3px;
+  background: #e1e8ed;
+  border-radius: 2px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.refined-tweet-body {
+  flex: 1;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.refined-tweet:last-child .refined-tweet-body {
+  border-bottom: none;
+}
+
+.refined-tweet-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tweet-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tweet-num {
+  font-size: 11px;
+  color: #8899a6;
+}
+
+.refined-tweet-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0f1419;
+  padding-left: 36px;
+}
+
+/* Refined Newsletter */
+.refined-newsletter {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  border-left: 4px solid #2563eb;
+  overflow: hidden;
+}
+
+.refined-newsletter-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.refined-newsletter-body {
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.refined-newsletter-body p {
+  margin: 0 0 12px 0;
+}
+
+.refined-newsletter-body p:last-child {
+  margin-bottom: 0;
+}
+
 /* Loading states */
 .loading-overlay {
   position: fixed;
@@ -651,11 +1515,106 @@ p {
   margin-bottom: 8px;
 }
 
+/* ============================================
+   PROGRESS BAR - Pipeline Indicator
+   ============================================ */
+
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0 16px;
+  margin-bottom: 8px;
+}
+
+.progress-step-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.progress-step:hover {
+  background: #f3f4f6;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  border: 2px solid #e5e7eb;
+  transition: all 0.15s ease;
+}
+
+.step-label {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+/* Completed state */
+.progress-step.completed .step-dot {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.progress-step.completed .step-label {
+  color: #6b7280;
+}
+
+/* Current state */
+.progress-step.current .step-dot {
+  background: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.progress-step.current .step-label {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* Upcoming state */
+.progress-step.upcoming .step-dot {
+  background: white;
+  border-color: #d1d5db;
+}
+
+.progress-step.upcoming .step-label {
+  color: #d1d5db;
+}
+
+/* Connector line */
+.step-connector {
+  width: 40px;
+  height: 2px;
+  background: #e5e7eb;
+  margin: 0 4px;
+  margin-bottom: 20px;
+  transition: background 0.15s ease;
+}
+
+.step-connector.filled {
+  background: #2563eb;
+}
+
+/* Legacy pipeline-info (keep for backward compatibility) */
 .pipeline-info {
   font-size: 12px;
   color: #6b7280;
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
   padding: 8px 16px;
   background: #f9fafb;
   border-radius: 4px;
@@ -668,11 +1627,11 @@ p {
 .text-lg { font-size: 18px; }
 .mb-2 { margin-bottom: 8px; }
 .mb-4 { margin-bottom: 16px; }
-.mb-6 { margin-bottom: 24px; }
+.mb-6 { margin-bottom: 20px; }
 .mt-4 { margin-top: 16px; }
-.mt-6 { margin-top: 24px; }
-.mt-8 { margin-top: 40px; }
-.section { margin-bottom: 32px; }
+.mt-6 { margin-top: 20px; }
+.mt-8 { margin-top: 32px; }
+.section { margin-bottom: 24px; }
 .flex { display: flex; }
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
@@ -701,6 +1660,98 @@ p {
   .tab {
     flex: 1;
     text-align: center;
+  }
+  
+  /* Outcome tab responsive */
+  .outcome-container {
+    max-width: 100%;
+  }
+  
+  .platform-tabs {
+    gap: 16px;
+  }
+  
+  .linkedin-preview-compact,
+  .tweet-thread-compact,
+  .newsletter-compact {
+    max-width: 100%;
+  }
+  
+  .tweet-text {
+    padding-left: 0;
+    margin-top: 8px;
+  }
+  
+  .tweet-user {
+    flex-wrap: wrap;
+  }
+  
+  /* Review tab responsive */
+  .review-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .review-summary-bar {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .review-header-left {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  
+  .issues-scroll-container {
+    max-height: 350px;
+  }
+  
+  /* Refined tab responsive */
+  .refined-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .refined-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .refined-changes-col {
+    position: static;
+  }
+  
+  .refined-tweet-text {
+    padding-left: 0;
+    margin-top: 6px;
+  }
+  
+  /* Progress bar responsive */
+  .progress-bar {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+  
+  .step-connector {
+    width: 24px;
+  }
+  
+  .step-label {
+    font-size: 11px;
+  }
+}
+
+/* Tablet responsive */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .refined-layout {
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+  }
+  
+  .changes-panel-body {
+    max-height: 400px;
   }
 }
 
@@ -1131,8 +2182,8 @@ pre {
   }
 }
 
-/* Issue cards */
-.issue-card {
+/* Issue cards - legacy styles (kept for backward compatibility) */
+.legacy-issue-card {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
@@ -1140,16 +2191,16 @@ pre {
   background: #fff;
 }
 
-.issue-card.critical,
-.issue-card.high {
+.legacy-issue-card.critical,
+.legacy-issue-card.high {
   border-left: 4px solid #ef4444;
 }
 
-.issue-card.medium {
+.legacy-issue-card.medium {
   border-left: 4px solid #f59e0b;
 }
 
-.issue-card.low {
+.legacy-issue-card.low {
   border-left: 4px solid #3b82f6;
 }
 

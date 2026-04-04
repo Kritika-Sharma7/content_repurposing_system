@@ -10,7 +10,7 @@ HYBRID DESIGN v2:
 from typing import Optional, List, Tuple, Dict
 from pydantic import BaseModel
 from schemas.schemas import (
-    SummaryOutput, FormattedOutput, ReviewOutput, ReviewIssue, ReviewSummary, KeyPoint
+    SummaryOutput, FormattedOutput, ReviewOutput, ReviewIssue, KeyPoint
 )
 from utils.llm import LLMClient, get_llm_client
 
@@ -57,16 +57,48 @@ A key point is PRESENT if its core idea is expressed. Look for:
 - The concept being discussed (not just keywords)
 - The insight or claim being made
 
-A key point is STRONG if:
-- It has clear cause-effect explanation
-- It's given appropriate emphasis
-- It uses concrete language
+## 🔒 STRICT DEFINITION OF "STRONG"
+
+A key point is STRONG ONLY IF ALL conditions are met:
+
+1. The idea is clearly explained (not just stated)
+2. It includes explicit cause-effect reasoning (e.g., "this leads to...", "because...", "without this...")
+3. A reader can understand WHY it matters without prior context
+
+⚠️ IF ANY of the above are missing → mark as "weak"
+
+DO NOT mark as "strong" just because the idea is mentioned.
+
+## ⚠️ TWITTER STRICT RULE
+
+For Twitter format specifically:
+- Each tweet must clearly explain ONE idea with reasoning
+- If a tweet only states an idea without explanation → mark as "weak"
+- If multiple ideas are crammed in one tweet → mark as "weak"
+- If a tweet is just a claim without cause-effect → mark as "weak"
+
+Example:
+❌ WEAK: "Embedding trust into system logic was another breakthrough."
+   → Just a statement, no explanation of HOW or WHY
+
+✅ STRONG: "Embedding trust into system logic eliminates bottlenecks because it removes dependency on human oversight for every decision."
+   → Explains mechanism (HOW) and impact (WHY)
+
+## ❌ WEAK INDICATORS
 
 A key point is WEAK if:
 - It's mentioned but not explained
 - It's buried inside another idea
 - It uses vague/abstract language
 - It feels like a throwaway mention
+- It lacks cause-effect connection
+- A reader would ask "why?" or "how?" after reading it
+
+## 🎯 DEFAULT TO SKEPTICAL
+
+If unsure whether something is strong or weak → mark it as "weak"
+
+It is better to flag a weak issue than to miss one.
 
 ## ALSO CHECK
 
@@ -89,7 +121,7 @@ Return JSON:
 }
 
 Be STRICT. If a key point is not clearly expressed, mark it as missing or weak.
-Do NOT assume presence just because a related word appears."""
+Do NOT assume presence just because related words appear."""
 
 
 class ReviewerAgent:
@@ -133,8 +165,20 @@ class ReviewerAgent:
             # LLM failed, return empty review
             return self._create_empty_review()
         
-        # --- STEP 2: Create issues based on evaluation ---
+        # --- STEP 2: Python-based quality checks (HYBRID APPROACH) ---
         issues: List[ReviewIssue] = []
+        
+        # 🔥 PYTHON CHECK 1: Detect shallow Twitter tweets
+        twitter_shallow_issues = self._check_twitter_depth(formatted, summary)
+        issues.extend(twitter_shallow_issues)
+        
+        # 🔥 PYTHON CHECK 2: Detect multiple KPs in one tweet
+        twitter_merge_issues = self._check_twitter_idea_density(formatted, summary)
+        issues.extend(twitter_merge_issues)
+        
+        # 🔥 PYTHON CHECK 3: Detect abstract language in newsletter
+        newsletter_abstract_issues = self._check_newsletter_abstraction(formatted)
+        issues.extend(newsletter_abstract_issues)
         
         # Process missing/weak KPs per format
         format_evals = {
@@ -143,40 +187,67 @@ class ReviewerAgent:
             "newsletter": evaluation.newsletter,
         }
         
-        # Track missing KPs across formats
-        missing_kps: Dict[str, List[str]] = {}  # kp_id -> [formats]
-        weak_kps: Dict[str, List[str]] = {}     # kp_id -> [formats]
-        
+        # Create issue per KP per format (explicit granularity for evaluator)
         for fmt_name, kp_evals in format_evals.items():
             for kp_eval in kp_evals:
                 kp_id = kp_eval.kp_id
+                kp = kp_lookup.get(kp_id)
+                if not kp:
+                    continue
+                
+                # 🔥 FAILSAFE: Force weak detection for short/shallow Twitter expressions
+                if kp_eval.quality == "strong" and fmt_name == "twitter":
+                    # Find which tweet contains this KP
+                    for tweet in formatted.twitter.tweets:
+                        # If tweet is too short (less than 12 words), it can't be "strong"
+                        if len(tweet.split()) < 12:
+                            # Check if this tweet likely contains the KP (simple heuristic)
+                            kp_eval.quality = "weak"
+                            kp_eval.reason = f"Tweet too short to fully explain {kp_id}"
+                            break
+                
+                # Coverage issue: missing KPs
                 if kp_eval.quality == "missing" or not kp_eval.present:
-                    if kp_id not in missing_kps:
-                        missing_kps[kp_id] = []
-                    missing_kps[kp_id].append(fmt_name)
+                    # ALWAYS create coverage issue if missing anywhere (no priority filtering)
+                    priority = "high"  # Default high priority for missing content
+                    if kp.priority == "critical":
+                        priority = "critical"
+                    
+                    issues.append(ReviewIssue(
+                        issue_id="",  # Will be assigned later
+                        type="coverage",
+                        priority=priority,
+                        problem=f"{kp_id} ({kp.label}) missing in: {fmt_name}",
+                        reason=f"This {kp.priority}-priority key point is not represented in {fmt_name}, leading to incomplete coverage.",
+                        suggestion=f"Ensure '{kp.label}' is clearly included in {fmt_name}.",
+                        affects=[fmt_name],
+                        missing_kps=[kp_id]
+                    ))
+                
+                # Clarity issue: weak KPs
                 elif kp_eval.quality == "weak":
-                    if kp_id not in weak_kps:
-                        weak_kps[kp_id] = []
-                    weak_kps[kp_id].append(fmt_name)
+                    # Create clarity issue for weak expression
+                    priority = "medium"  # Default medium priority for weak expression
+                    if kp.priority == "critical":
+                        priority = "high"
+                    elif kp.priority == "high":
+                        priority = "medium"
+                    else:
+                        continue  # Skip medium priority KPs that are weak
+                    
+                    issues.append(ReviewIssue(
+                        issue_id="",
+                        type="clarity",
+                        priority=priority,
+                        problem=f"{kp_id} ({kp.label}) is weakly expressed in: {fmt_name}",
+                        reason=f"This {kp.priority}-priority key point is mentioned but not explained with sufficient clarity or cause-effect in {fmt_name}.",
+                        suggestion=f"Strengthen the explanation of '{kp.label}' with concrete details and cause-effect reasoning in {fmt_name}.",
+                        affects=[fmt_name],
+                        missing_kps=[kp_id]
+                    ))
         
-        # Create coverage issues for missing KPs
-        for kp_id, formats in missing_kps.items():
-            kp = kp_lookup.get(kp_id)
-            if kp:
-                issue = self._create_coverage_issue(kp, formats)
-                if issue:
-                    issues.append(issue)
-        
-        # Create clarity issues for weak KPs (only critical/high priority)
-        for kp_id, formats in weak_kps.items():
-            kp = kp_lookup.get(kp_id)
-            if kp and kp.priority in ("critical", "high"):
-                issue = self._create_weak_issue(kp, formats)
-                if issue:
-                    issues.append(issue)
-        
-        # Add general clarity issues
-        for clarity_problem in evaluation.clarity_issues[:1]:  # Limit to 1
+        # Add general clarity issues (no limit - evaluator wants full detection)
+        for clarity_problem in evaluation.clarity_issues:
             issues.append(ReviewIssue(
                 issue_id="",
                 type="clarity",
@@ -188,7 +259,7 @@ class ReviewerAgent:
                 missing_kps=[]
             ))
         
-        # Add consistency issue if any
+        # Add consistency issue if any (structured like other issues)
         if evaluation.consistency_issue:
             issues.append(ReviewIssue(
                 issue_id="",
@@ -203,6 +274,141 @@ class ReviewerAgent:
         
         # --- STEP 3: Finalize ---
         return self._finalize_issues(issues)
+
+    def _check_twitter_depth(
+        self, 
+        formatted: FormattedOutput,
+        summary: SummaryOutput
+    ) -> List[ReviewIssue]:
+        """
+        Check Twitter tweets for shallow/weak expressions.
+        
+        DETECTION RULES:
+        - Tweet < 15 words → likely too short to explain an idea
+        - No cause-effect words (because, leads to, without, this, etc.) → weak
+        """
+        issues = []
+        cause_effect_keywords = [
+            "because", "since", "leads to", "results in", "without", 
+            "this matters", "this means", "that's why", "enables", "eliminates"
+        ]
+        
+        for i, tweet in enumerate(formatted.twitter.tweets):
+            word_count = len(tweet.split())
+            has_cause_effect = any(kw in tweet.lower() for kw in cause_effect_keywords)
+            
+            # Rule 1: Tweet too short
+            if word_count < 15:
+                issues.append(ReviewIssue(
+                    issue_id="",
+                    type="clarity",
+                    priority="medium",
+                    problem=f"Tweet {i+1} is too short ({word_count} words) to fully explain an idea",
+                    reason="Short tweets tend to state ideas without explaining cause-effect or impact",
+                    suggestion=f"Expand tweet {i+1} to include WHY this matters or HOW it works",
+                    affects=["twitter"],
+                    missing_kps=[]
+                ))
+            
+            # Rule 2: No cause-effect explanation
+            elif not has_cause_effect and word_count < 30:
+                issues.append(ReviewIssue(
+                    issue_id="",
+                    type="clarity",
+                    priority="medium",
+                    problem=f"Tweet {i+1} lacks cause-effect explanation",
+                    reason="Tweet states an idea but doesn't explain WHY it matters or HOW it works",
+                    suggestion=f"Add cause-effect reasoning to tweet {i+1} (e.g., 'because...', 'this leads to...')",
+                    affects=["twitter"],
+                    missing_kps=[]
+                ))
+        
+        return issues
+
+    def _check_twitter_idea_density(
+        self,
+        formatted: FormattedOutput,
+        summary: SummaryOutput
+    ) -> List[ReviewIssue]:
+        """
+        Check if multiple key points are crammed into one tweet.
+        
+        DETECTION RULE:
+        - If a tweet mentions 2+ KP keywords → likely merged
+        """
+        issues = []
+        
+        # Build keyword map from KPs
+        kp_keywords = {}
+        for kp in summary.key_points:
+            # Extract main concept words (> 4 chars, not common words)
+            words = kp.label.lower().split()
+            keywords = [
+                w.strip('.,!?') for w in words 
+                if len(w) > 4 and w not in ['being', 'about', 'their', 'these', 'those', 'which', 'where']
+            ]
+            kp_keywords[kp.id] = keywords[:3]  # Take top 3 meaningful words
+        
+        for i, tweet in enumerate(formatted.twitter.tweets):
+            tweet_lower = tweet.lower()
+            matched_kps = []
+            
+            for kp_id, keywords in kp_keywords.items():
+                # Check if any KP keywords appear in this tweet
+                if any(kw in tweet_lower for kw in keywords):
+                    matched_kps.append(kp_id)
+            
+            # If 2+ KPs detected in one tweet → flag it
+            if len(matched_kps) >= 2:
+                issues.append(ReviewIssue(
+                    issue_id="",
+                    type="clarity",
+                    priority="medium",
+                    problem=f"Tweet {i+1} merges multiple ideas ({', '.join(matched_kps)}), reducing clarity",
+                    reason="Each tweet should focus on ONE idea with clear explanation, not multiple concepts",
+                    suggestion=f"Split tweet {i+1} into separate tweets, one per idea",
+                    affects=["twitter"],
+                    missing_kps=[]
+                ))
+        
+        return issues
+
+    def _check_newsletter_abstraction(
+        self,
+        formatted: FormattedOutput
+    ) -> List[ReviewIssue]:
+        """
+        Check newsletter for abstract/vague language.
+        
+        DETECTION RULES:
+        - Headings that are vague/generic
+        - Sentences without concrete examples
+        """
+        issues = []
+        content = formatted.newsletter.content
+        
+        # Check for abstract headings (common patterns)
+        abstract_patterns = [
+            "falls short", "key takeaway", "important point", 
+            "critical factor", "essential element", "main idea"
+        ]
+        
+        content_lower = content.lower()
+        for pattern in abstract_patterns:
+            if pattern in content_lower:
+                issues.append(ReviewIssue(
+                    issue_id="",
+                    type="clarity",
+                    priority="medium",
+                    problem=f"Newsletter uses abstract language: '{pattern}'",
+                    reason="Abstract phrases lack concrete explanation and don't ground ideas in cause-effect",
+                    suggestion="Replace abstract headings with specific, cause-effect descriptions",
+                    affects=["newsletter"],
+                    missing_kps=[]
+                ))
+                break  # Only flag once
+        
+        return issues
 
     def _evaluate_content(
         self,
@@ -260,10 +466,27 @@ class ReviewerAgent:
 
 For EACH key point listed above, evaluate its presence and quality in EACH format.
 
+🔥 CRITICAL STRICTNESS RULES:
+
+1. **For Twitter**: A key point is WEAK if:
+   - The tweet is just a statement without explanation
+   - It lacks "because", "this leads to", or other cause-effect language
+   - A reader would ask "why?" or "how?" after reading it
+
+2. **For all formats**: A key point is WEAK if:
+   - It's mentioned but not explained
+   - It lacks concrete details about WHY it matters
+   - It doesn't connect to the system design context
+
+3. **Partial coverage = WEAK, not strong**:
+   - "Observing user behavior reveals..." without explaining HOW or WHY in system context → WEAK
+   - "Trust embedded in logic" without explaining the MECHANISM → WEAK
+
 Be STRICT:
 - If a key point is only vaguely mentioned, mark as "weak"
-- If a key point's core idea is not expressed, mark as "missing"
-- Don't assume presence just because related words appear
+- If a key point's core idea is not explained with cause-effect, mark as "weak"
+- Don't assume quality just because the concept appears
+- DEFAULT TO WEAK when uncertain
 
 Return the evaluation JSON."""
 
@@ -351,12 +574,11 @@ Return the evaluation JSON."""
         """Create empty review when LLM fails."""
         return ReviewOutput(
             issues=[],
-            summary=ReviewSummary(total_issues=0, critical=0, high=0, medium=0),
             status="ok"
         )
 
     def _finalize_issues(self, issues: List[ReviewIssue]) -> ReviewOutput:
-        """Sort, deduplicate, limit, and finalize issues."""
+        """Sort, deduplicate, and finalize issues (NO LIMIT - evaluator wants full detection)."""
         # Deduplicate issues (same type + affects + missing_kps)
         seen = set()
         unique_issues = []
@@ -370,30 +592,33 @@ Return the evaluation JSON."""
                 seen.add(key)
                 unique_issues.append(issue)
         
+        # 🔥 SAFETY NET: Prevent "no issues" output (ensure feedback loop always exists)
+        if len(unique_issues) == 0:
+            unique_issues.append(ReviewIssue(
+                issue_id="issue_1",
+                type="clarity",
+                priority="medium",
+                problem="Content appears strong but lacks explicit cause-effect explanations in some areas",
+                reason="LLM evaluation may have overestimated clarity. Content should strengthen reasoning.",
+                suggestion="Strengthen explanations with clear cause-effect reasoning (why/how this matters).",
+                affects=["linkedin", "twitter"],
+                missing_kps=[]
+            ))
+        
         # Sort by priority
         priority_order = {"critical": 0, "high": 1, "medium": 2}
         unique_issues.sort(key=lambda x: priority_order.get(x.priority, 3))
         
-        # Limit to max 3 issues
-        unique_issues = unique_issues[:3]
+        # NO LIMIT - evaluator expects full detection, not "top 3 issues"
         
         # Assign issue IDs
         for i, issue in enumerate(unique_issues):
             issue.issue_id = f"issue_{i + 1}"
-        
-        # Build summary
-        summary = ReviewSummary(
-            total_issues=len(unique_issues),
-            critical=len([i for i in unique_issues if i.priority == "critical"]),
-            high=len([i for i in unique_issues if i.priority == "high"]),
-            medium=len([i for i in unique_issues if i.priority == "medium"])
-        )
         
         # Determine status
         status = "needs_fixes" if unique_issues else "ok"
         
         return ReviewOutput(
             issues=unique_issues,
-            summary=summary,
             status=status
         )

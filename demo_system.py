@@ -249,10 +249,11 @@ def main():
     # Display results
     display_key_points(result.summary)
     display_formatted_content(result.v1)
-    display_review(result.review)
+    display_review(result.review_v1)  # Show review of V1
     
     if result.v2:
         display_refined(result.v2, "V2")
+        display_review(result.review_v2)  # Show review of V2
     
     if len(result.iterations) > 1:
         print_subsection(f"V{result.v2.version if result.v2 else 1} (Final)")

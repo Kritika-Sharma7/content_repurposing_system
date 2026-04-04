@@ -158,24 +158,41 @@ function ResultsScreen({ result, error, onBack }) {
     );
   }
   
-  const tabs = ["Summary", "Content", "Review", "Refined"];
+  const tabs = ["Summary", "Content", "Review", "Refined", "Outcome"];
+  
+  // Determine available versions dynamically
+  const availableVersions = ['v1'];
+  if (result.v2) availableVersions.push('v2');
+  if (result.v3) availableVersions.push('v3');
+  if (result.v4) availableVersions.push('v4');
+  if (result.v5) availableVersions.push('v5');
   
   return (
     <div>
-      <div className="pipeline-info text-center mb-6">
-        Pipeline: Summarizer → Formatter → Reviewer → Refiner
-      </div>
-      
-      <div className="tabs">
-        {tabs.map(tab => (
-          <button 
-            key={tab}
-            className={`tab ${activeTab === tab.toLowerCase() ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.toLowerCase())}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Progress Indicator */}
+      <div className="progress-bar">
+        {tabs.map((tab, index) => {
+          const tabKey = tab.toLowerCase();
+          const currentIndex = tabs.findIndex(t => t.toLowerCase() === activeTab);
+          const isCompleted = index < currentIndex;
+          const isCurrent = index === currentIndex;
+          const isUpcoming = index > currentIndex;
+          
+          return (
+            <div key={tab} className="progress-step-wrapper">
+              <div 
+                className={`progress-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isUpcoming ? 'upcoming' : ''}`}
+                onClick={() => setActiveTab(tabKey)}
+              >
+                <div className="step-dot"></div>
+                <span className="step-label">{tab}</span>
+              </div>
+              {index < tabs.length - 1 && (
+                <div className={`step-connector ${isCompleted ? 'filled' : ''}`}></div>
+              )}
+            </div>
+          );
+        })}
       </div>
       
       <div className="tab-content">
@@ -275,63 +292,247 @@ function ResultsScreen({ result, error, onBack }) {
         )}
         
         {activeTab === "review" && (
-          <div>
-            {result.review?.issues?.length ? (
-              <>
-                {["critical", "high", "medium"].map(priority => {
-                  const issues = result.review.issues.filter(issue => issue.priority === priority);
-                  if (!issues.length) return null;
-                  
-                  return (
-                    <div key={priority} className="issues-group">
-                      <div className="issues-header">
-                        <h3>{priority.toUpperCase()}</h3>
-                        <span className={`priority-badge priority-${priority}`}>
-                          {issues.length} issues
-                        </span>
-                      </div>
-                      {issues.map((issue, i) => (
-                        <div key={i} className="issue-item">
-                          <div className="issue-problem">{issue.problem}</div>
-                          <div className="issue-reason">{issue.reason}</div>
-                          <div className="issue-suggestion">{issue.suggestion}</div>
+          <div className="review-container">
+            {/* Show iteration history if available */}
+            {result.iterations && result.iterations.length > 0 ? (
+              <div>
+                {/* Summary Stats - Compact inline layout */}
+                <div className="review-summary-bar">
+                  <h2 className="review-title">Review Summary</h2>
+                  <div className="review-stats">
+                    <span className="stat-item">{result.iterations.length} Iteration{result.iterations.length > 1 ? 's' : ''}</span>
+                    <span className="stat-divider">|</span>
+                    <span className="stat-item">{result.iterations.reduce((sum, it) => sum + (it.review?.issues?.length || 0), 0)} Issues</span>
+                  </div>
+                </div>
+
+                {/* Two-column layout for iterations */}
+                <div className="review-grid" style={{ gridTemplateColumns: result.iterations.length > 1 ? 'repeat(2, 1fr)' : '1fr' }}>
+                  {result.iterations.map((iteration) => {
+                    const review = iteration.review;
+                    const totalIssues = review?.issues?.length || 0;
+                    
+                    return (
+                      <div key={iteration.iteration} className="review-column">
+                        {/* Header - Single row */}
+                        <div className="review-column-header">
+                          <div className="review-header-left">
+                            <span className="review-version">Review of V{iteration.iteration}</span>
+                            <span className="review-iteration">Iteration {iteration.iteration}</span>
+                          </div>
+                          <span className={`issue-count-badge ${totalIssues === 0 ? 'success' : ''}`}>
+                            {totalIssues === 0 ? '✓ Passed' : `${totalIssues} Issues`}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </>
+
+                        {/* Issues Container with scroll */}
+                        <div className="issues-scroll-container">
+                          {totalIssues === 0 ? (
+                            <div className="no-issues">
+                              <span className="check-icon">✓</span>
+                              <span>All quality checks passed</span>
+                            </div>
+                          ) : (
+                            <>
+                              {["critical", "high", "medium"].map(priority => {
+                                const issues = review.issues.filter(issue => issue.priority === priority);
+                                if (!issues.length) return null;
+                                
+                                return (
+                                  <div key={priority} className="priority-group">
+                                    <div className="priority-label-row">
+                                      <span className={`priority-label ${priority}`}>{priority}</span>
+                                      <span className="priority-count">{issues.length}</span>
+                                    </div>
+                                    {issues.map((issue, i) => {
+                                      // Strip kp_X prefix from problem text
+                                      const cleanProblem = issue.problem?.replace(/^kp_\d+\s*[\(\[]?/i, '').replace(/^\(/, '');
+                                      return (
+                                        <div key={i} className="issue-card">
+                                          <div className="issue-problem-text">{cleanProblem}</div>
+                                          <div className="issue-suggestion-text">{issue.suggestion}</div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
-              <div className="card text-center">
-                <p>No issues found! Your content looks great.</p>
+              <div className="no-review-data">
+                <p>No review data available.</p>
               </div>
             )}
           </div>
         )}
         
         {activeTab === "refined" && (
-          <div>
-            <div className="toggle-group mb-6">
-              <button 
-                className={`toggle-btn ${refinedVersion === 'v1' ? 'active' : ''}`}
-                onClick={() => setRefinedVersion('v1')}
-              >
-                Show V1
-              </button>
-              <button 
-                className={`toggle-btn ${refinedVersion === 'v2' ? 'active' : ''}`}
-                onClick={() => setRefinedVersion('v2')}
-              >
-                Show V2
-              </button>
+          <div className="refined-container">
+            {/* Version Toggle - at top */}
+            <div className="refined-header">
+              <div className="version-selector">
+                {availableVersions.map(v => (
+                  <button 
+                    key={v}
+                    className={`version-btn ${refinedVersion === v ? 'active' : ''}`}
+                    onClick={() => setRefinedVersion(v)}
+                  >
+                    {v.toUpperCase()} {v === availableVersions[availableVersions.length - 1] ? '(Final)' : ''}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Platform tabs */}
+              <div className="platform-tabs-inline">
+                {["LinkedIn", "Twitter", "Newsletter"].map(platform => (
+                  <button 
+                    key={platform}
+                    className={`platform-tab-sm ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
+                    onClick={() => setContentSubTab(platform.toLowerCase())}
+                  >
+                    {platform}
+                  </button>
+                ))}
+              </div>
             </div>
             
-            {/* Show same content structure as Content tab but for selected version */}
-            <div className="tabs" style={{ marginBottom: '24px' }}>
+            {/* Two-column layout */}
+            <div className="refined-layout">
+              {/* Left: Content */}
+              <div className="refined-content-col">
+                {(() => {
+                  const currentVersion = (() => {
+                    switch(refinedVersion) {
+                      case 'v5': return result.v5;
+                      case 'v4': return result.v4;
+                      case 'v3': return result.v3;
+                      case 'v2': return result.v2;
+                      default: return result.v1;
+                    }
+                  })();
+                  if (!currentVersion) return <p>No content for this version.</p>;
+                  
+                  return (
+                    <>
+                      {contentSubTab === "linkedin" && (
+                        <div className="refined-linkedin">
+                          <div className="refined-card-header">
+                            <div className="avatar-sm">YU</div>
+                            <div className="user-info-compact">
+                              <span className="user-name">Your Name</span>
+                              <span className="user-meta">Now</span>
+                            </div>
+                          </div>
+                          <div className="refined-card-body">
+                            {currentVersion?.linkedin?.content}
+                          </div>
+                          <div className="refined-card-footer">
+                            <span>Like</span>
+                            <span>Comment</span>
+                            <span>Share</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {contentSubTab === "twitter" && (
+                        <div className="refined-twitter">
+                          {(currentVersion?.twitter?.tweets || []).map((tweet, i, arr) => (
+                            <div key={i} className="refined-tweet">
+                              <div className="tweet-left-accent"></div>
+                              <div className="refined-tweet-body">
+                                <div className="refined-tweet-meta">
+                                  <div className="tweet-user-info">
+                                    <div className="avatar-xs">YU</div>
+                                    <span className="user-name">Your Username</span>
+                                    <span className="user-handle">@yourusername</span>
+                                  </div>
+                                  <span className="tweet-num">{i + 1}/{arr.length}</span>
+                                </div>
+                                <div className="refined-tweet-text">{tweet}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {contentSubTab === "newsletter" && (
+                        <div className="refined-newsletter">
+                          <div className="refined-newsletter-header">
+                            <span className="newsletter-label">Your Newsletter</span>
+                            <span className="newsletter-tagline">Curated insights delivered to your inbox</span>
+                          </div>
+                          <div className="refined-newsletter-body" dangerouslySetInnerHTML={{ 
+                            __html: formatNewsletterContent(currentVersion?.newsletter?.content || '')
+                          }} />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+              
+              {/* Right: Changes (sticky) */}
+              {refinedVersion !== 'v1' && (
+                <div className="refined-changes-col">
+                  <div className="changes-panel">
+                    <div className="changes-panel-header">
+                      <span className="changes-title">Changes in {refinedVersion.toUpperCase()}</span>
+                    </div>
+                    <div className="changes-panel-body">
+                      {(() => {
+                        const currentChanges = (() => {
+                          switch(refinedVersion) {
+                            case 'v5': return result.v5?.changes;
+                            case 'v4': return result.v4?.changes;
+                            case 'v3': return result.v3?.changes;
+                            case 'v2': return result.v2?.changes;
+                            default: return [];
+                          }
+                        })() || [];
+                        
+                        return currentChanges.map((change, i) => (
+                          <div key={i} className="change-card">
+                            <div className="change-action">
+                              <span className="action-type">{change.action}</span>
+                              <span className="action-target">{change.target}</span>
+                            </div>
+                            {change.before && change.after && (
+                              <div className="change-diff">
+                                <div className="diff-before">{change.before}</div>
+                                <div className="diff-after">{change.after}</div>
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "outcome" && (
+          <div className="outcome-container">
+            <div className="outcome-header">
+              <h2>Final Output</h2>
+              <p>Your content has been refined and is ready to use. Copy the content below for each platform.</p>
+            </div>
+            
+            {/* Platform tabs */}
+            <div className="platform-tabs">
               {["LinkedIn", "Twitter", "Newsletter"].map(platform => (
                 <button 
                   key={platform}
-                  className={`tab ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
+                  className={`platform-tab ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
                   onClick={() => setContentSubTab(platform.toLowerCase())}
                 >
                   {platform}
@@ -339,78 +540,111 @@ function ResultsScreen({ result, error, onBack }) {
               ))}
             </div>
             
-            {/* Same content display logic as Content tab */}
-            {contentSubTab === "linkedin" && (
-              <div className="linkedin-preview">
-                <div className="linkedin-header">
-                  <div className="avatar">YU</div>
-                  <div className="user-info">
-                    <h4>Your Name</h4>
-                    <p className="timestamp">Now</p>
-                  </div>
-                </div>
-                <div className="linkedin-content">
-                  {refinedVersion === 'v2' ? result.v2?.linkedin?.content : result.v1?.linkedin?.content}
-                </div>
-                <div className="engagement">
-                  <span>👍 Like</span>
-                  <span>💬 Comment</span>
-                  <span>↗ Share</span>
-                </div>
-              </div>
-            )}
-            
-            {contentSubTab === "twitter" && (
-              <div className="tweet-thread">
-                {(refinedVersion === 'v2' ? result.v2?.twitter?.tweets : result.v1?.twitter?.tweets || []).map((tweet, i, arr) => (
-                  <div key={i} className="tweet-wrapper">
-                    <div className="tweet-card">
-                      <div className="tweet-header">
-                        <div className="avatar">YU</div>
-                        <div className="user-info">
-                          <h4>Your Username</h4>
-                          <p className="timestamp">@yourusername</p>
+            {/* Final content - use the latest version available */}
+            {(() => {
+              const finalVersion = result.v5 || result.v4 || result.v3 || result.v2 || result.v1;
+              if (!finalVersion) return <p>No content available.</p>;
+              
+              return (
+                <>
+                  {contentSubTab === "linkedin" && (
+                    <div className="content-section">
+                      <div className="linkedin-preview-compact">
+                        <div className="linkedin-header-compact">
+                          <div className="avatar-sm">YU</div>
+                          <div className="user-info-compact">
+                            <span className="user-name">Your Name</span>
+                            <span className="user-meta">Now</span>
+                          </div>
+                        </div>
+                        <div className="linkedin-body">
+                          {finalVersion?.linkedin?.content}
+                        </div>
+                        <div className="linkedin-actions">
+                          <span>Like</span>
+                          <span>Comment</span>
+                          <span>Share</span>
                         </div>
                       </div>
-                      <div className="tweet-number">{i + 1}/{arr.length}</div>
-                      <div className="tweet-content">{tweet}</div>
-                    </div>
-                    {i < arr.length - 1 && <div className="thread-connector"></div>}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {contentSubTab === "newsletter" && (
-              <div className="newsletter-preview">
-                <div className="newsletter-header">
-                  <h2 className="newsletter-title">Your Newsletter</h2>
-                  <p className="newsletter-subtitle">Curated insights delivered to your inbox</p>
-                </div>
-                <div className="newsletter-content">
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: formatNewsletterContent(refinedVersion === 'v2' ? result.v2?.newsletter?.content : result.v1?.newsletter?.content || '')
-                  }} />
-                </div>
-              </div>
-            )}
-            
-            {result.v2?.changes?.length > 0 && (
-              <div className="changes-section mt-6">
-                <h3>Changes Made</h3>
-                {result.v2.changes.map((change, i) => (
-                  <div key={i} className="change-item">
-                    <strong>{change.action}:</strong> {change.target}
-                    {change.before && change.after && (
-                      <div className="change-detail">
-                        <div className="change-before">"{change.before}"</div>
-                        <div className="change-after">"{change.after}"</div>
+                      <div className="action-bar">
+                        <button 
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(finalVersion?.linkedin?.content || '');
+                            alert('LinkedIn post copied to clipboard!');
+                          }}
+                        >
+                          Copy LinkedIn Post
+                        </button>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                    </div>
+                  )}
+                  
+                  {contentSubTab === "twitter" && (
+                    <div className="content-section">
+                      <div className="tweet-thread-compact">
+                        {(finalVersion?.twitter?.tweets || []).map((tweet, i, arr) => (
+                          <div key={i} className="tweet-item">
+                            <div className="tweet-left-border"></div>
+                            <div className="tweet-body">
+                              <div className="tweet-meta">
+                                <div className="tweet-user">
+                                  <div className="avatar-xs">YU</div>
+                                  <span className="user-name">Your Username</span>
+                                  <span className="user-handle">@yourusername</span>
+                                </div>
+                                <span className="tweet-count">{i + 1}/{arr.length}</span>
+                              </div>
+                              <div className="tweet-text">{tweet}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="action-bar">
+                        <button 
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            const threadText = (finalVersion?.twitter?.tweets || []).map((t, i) => `${i + 1}/${finalVersion?.twitter?.tweets.length} ${t}`).join('\n\n');
+                            navigator.clipboard.writeText(threadText);
+                            alert('Twitter thread copied to clipboard!');
+                          }}
+                        >
+                          Copy Twitter Thread
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {contentSubTab === "newsletter" && (
+                    <div className="content-section">
+                      <div className="newsletter-compact">
+                        <div className="newsletter-accent"></div>
+                        <div className="newsletter-body">
+                          <div className="newsletter-meta">
+                            <span className="newsletter-label">Your Newsletter</span>
+                            <span className="newsletter-tagline">Curated insights delivered to your inbox</span>
+                          </div>
+                          <div className="newsletter-text" dangerouslySetInnerHTML={{ 
+                            __html: formatNewsletterContent(finalVersion?.newsletter?.content || '')
+                          }} />
+                        </div>
+                      </div>
+                      <div className="action-bar">
+                        <button 
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(finalVersion?.newsletter?.content || '');
+                            alert('Newsletter copied to clipboard!');
+                          }}
+                        >
+                          Copy Newsletter
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

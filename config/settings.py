@@ -17,7 +17,7 @@ class FeedbackLoopSettings(BaseModel):
         description="Minimum normalized score to accept (0-1 scale)"
     )
     max_iterations: int = Field(
-        default=2,
+        default=5,
         ge=1,
         le=5,
         description="Maximum refinement iterations"
@@ -81,7 +81,7 @@ class SystemSettings(BaseModel):
 DEFAULT_SETTINGS = SystemSettings(
     feedback_loop=FeedbackLoopSettings(
         score_threshold=0.90,  # Stricter threshold
-        max_iterations=2,
+        max_iterations=5,
         min_key_points=4,
         retry_summarizer_on_failure=True,
         max_summarizer_retries=2,
