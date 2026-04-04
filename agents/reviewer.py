@@ -180,6 +180,10 @@ class ReviewerAgent:
         newsletter_abstract_issues = self._check_newsletter_abstraction(formatted)
         issues.extend(newsletter_abstract_issues)
         
+        # 🔥 PYTHON CHECK 4: Detect shallow newsletter bullets (like Twitter depth check)
+        newsletter_depth_issues = self._check_newsletter_bullet_depth(formatted, summary)
+        issues.extend(newsletter_depth_issues)
+        
         # Process missing/weak KPs per format
         format_evals = {
             "linkedin": evaluation.linkedin,
@@ -407,6 +411,73 @@ class ReviewerAgent:
                     missing_kps=[]
                 ))
                 break  # Only flag once
+        
+        return issues
+
+    def _check_newsletter_bullet_depth(
+        self,
+        formatted: FormattedOutput,
+        summary: SummaryOutput
+    ) -> List[ReviewIssue]:
+        """
+        Check newsletter bullets for shallow/weak expressions.
+        Similar to Twitter depth checks but adapted for bullet format.
+        
+        DETECTION RULES:
+        - Bullet description < 12 words → likely too brief
+        - No cause-effect words (by, because, leads to, without, etc.) → weak
+        - Just claims without explanation → weak
+        """
+        issues = []
+        cause_effect_keywords = [
+            "because", "since", "leads to", "results in", "by", "through",
+            "without", "this matters", "this means", "that's why", 
+            "enables", "eliminates", "allowing", "ensuring", "which"
+        ]
+        
+        content = formatted.newsletter.content
+        lines = content.split('\n')
+        
+        for i, line in enumerate(lines):
+            # Find bullet points (lines starting with '- ')
+            if line.strip().startswith('- '):
+                bullet_title = line.strip()[2:].strip()
+                
+                # Check if there's a description on the next line
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    
+                    # Skip if next line is another bullet or empty
+                    if next_line and not next_line.startswith('-'):
+                        description = next_line
+                        word_count = len(description.split())
+                        has_cause_effect = any(kw in description.lower() for kw in cause_effect_keywords)
+                        
+                        # Rule 1: Description too brief without cause-effect
+                        if word_count < 12 and not has_cause_effect:
+                            issues.append(ReviewIssue(
+                                issue_id="",
+                                type="clarity",
+                                priority="medium",
+                                problem=f"Newsletter bullet '{bullet_title}' has brief description without cause-effect",
+                                reason="Brief bullets should still explain WHY it matters or HOW it works",
+                                suggestion=f"Add cause-effect reasoning to '{bullet_title}' (e.g., 'because...', 'this leads to...', 'by...')",
+                                affects=["newsletter"],
+                                missing_kps=[]
+                            ))
+                        
+                        # Rule 2: Moderate length but no explanation
+                        elif word_count >= 12 and word_count < 20 and not has_cause_effect:
+                            issues.append(ReviewIssue(
+                                issue_id="",
+                                type="clarity",
+                                priority="medium",
+                                problem=f"Newsletter bullet '{bullet_title}' lacks cause-effect explanation",
+                                reason="Bullet describes WHAT but not WHY or HOW, making it less impactful",
+                                suggestion=f"Add cause-effect language to explain the mechanism or impact in '{bullet_title}'",
+                                affects=["newsletter"],
+                                missing_kps=[]
+                            ))
         
         return issues
 

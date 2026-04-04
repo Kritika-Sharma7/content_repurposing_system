@@ -10,7 +10,7 @@ export default function NewsletterView({ newsletter, label = "Preview" }) {
     <article className="platform-card newsletter">
       <div className="platform-head">
         <div>
-          <strong>Newsletter Draft</strong>
+          <strong>ContentForge Newsletter</strong>
           <span>{label}</span>
         </div>
       </div>

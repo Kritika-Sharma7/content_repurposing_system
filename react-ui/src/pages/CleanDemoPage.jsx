@@ -237,19 +237,41 @@ function ResultsScreen({ result, error, onBack }) {
             {contentSubTab === "linkedin" && (
               <div className="linkedin-preview">
                 <div className="linkedin-header">
-                  <div className="avatar">YU</div>
+                  <div className="avatar">CF</div>
                   <div className="user-info">
-                    <h4>Your Name</h4>
-                    <p className="timestamp">Now</p>
+                    <h4>ContentForge</h4>
+                    <p className="timestamp">AI Content Creator • 2d</p>
                   </div>
+                  <button className="follow-btn">+ Follow</button>
                 </div>
                 <div className="linkedin-content">
                   {result.v2?.linkedin?.content || result.v1?.linkedin?.content}
                 </div>
+                <div className="linkedin-engagement-info">
+                  <span className="reaction-info">Aman Goswami and 34 others</span>
+                  <div className="engagement-stats">
+                    <span>10 comments</span>
+                    <span>•</span>
+                    <span>1 repost</span>
+                  </div>
+                </div>
                 <div className="engagement">
-                  <span>👍 Like</span>
-                  <span>💬 Comment</span>
-                  <span>↗ Share</span>
+                  <span className="engagement-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.46 11l-3.91-3.91a7 7 0 01-1.69-2.74l-.49-1.47A2.76 2.76 0 0010.76 1 2.75 2.75 0 008 3.74v1.12a9.19 9.19 0 00.46 2.85L8.89 9H4.12A2.12 2.12 0 002 11.12a2.16 2.16 0 00.92 1.76A2.11 2.11 0 002 14.62a2.14 2.14 0 001.28 2 2 2 0 00-.28 1 2.12 2.12 0 002 2.12v.14A2.12 2.12 0 007.12 22h7.49a8.08 8.08 0 003.58-.84l.31-.16H21V11zM19 19h-1l-.73.37a6.14 6.14 0 01-2.69.63H7.72a1 1 0 01-1-.72l-.25-.87-.85-.41A1 1 0 015 17l.17-1-.76-.74A1 1 0 014.27 14l.66-1.09-.73-1.1a.49.49 0 01.08-.7.48.48 0 01.34-.11h7.05l-1.31-3.92A7 7 0 0110 4.86V3.75a.77.77 0 01.75-.75.75.75 0 01.71.51L12 5a9 9 0 002.13 3.5l4.5 4.5H19z"></path></svg>
+                    Like
+                  </span>
+                  <span className="engagement-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 9h10v1H7zm0 4h7v-1H7z" opacity=".6"></path><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v13A1.5 1.5 0 003.5 18H5v3l6.29-3H20.5a1.5 1.5 0 001.5-1.5v-13A1.5 1.5 0 0020.5 2zM20 16.5a.5.5 0 01-.5.5h-11l-1.86.93L6 18.12V17H3.5a.5.5 0 01-.5-.5v-13a.5.5 0 01.5-.5h17a.5.5 0 01.5.5z"></path></svg>
+                    Comment
+                  </span>
+                  <span className="engagement-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M23 12l-4.61 7H16l4-6H8a3 3 0 01-3-3V4h2v5a1 1 0 001 1h12l-4-6h2.39z"></path></svg>
+                    Repost
+                  </span>
+                  <span className="engagement-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21 3L0 10l7.66 4.26L16 8l-6.26 8.34L14 24z"></path></svg>
+                    Send
+                  </span>
                 </div>
               </div>
             )}
@@ -260,16 +282,38 @@ function ResultsScreen({ result, error, onBack }) {
                   <div key={i} className="tweet-wrapper">
                     <div className="tweet-card">
                       <div className="tweet-header">
-                        <div className="avatar">YU</div>
-                        <div className="user-info">
-                          <h4>Your Username</h4>
-                          <p className="timestamp">@yourusername</p>
+                        <div className="tweet-avatar-wrapper">
+                          <div className="avatar threads-avatar">CF</div>
+                          {i < arr.length - 1 && <div className="thread-line"></div>}
+                        </div>
+                        <div className="tweet-main-content">
+                          <div className="tweet-user-header">
+                            <div className="user-info">
+                              <h4>ContentForge</h4>
+                              <span className="verified-badge">✓</span>
+                              <p className="timestamp">@contentforge • 2h</p>
+                            </div>
+                            <button className="tweet-menu-btn">⋯</button>
+                          </div>
+                          <div className="tweet-number-badge">{i + 1}/{arr.length}</div>
+                          <div className="tweet-content">{tweet}</div>
+                          <div className="tweet-actions">
+                            <button className="action-btn">
+                              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"></path></svg>
+                            </button>
+                            <button className="action-btn">
+                              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 014-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 01-4 4H3"></path></svg>
+                            </button>
+                            <button className="action-btn">
+                              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path></svg>
+                            </button>
+                            <button className="action-btn">
+                              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="tweet-number">{i + 1}/{arr.length}</div>
-                      <div className="tweet-content">{tweet}</div>
                     </div>
-                    {i < arr.length - 1 && <div className="thread-connector"></div>}
                   </div>
                 ))}
               </div>
@@ -278,13 +322,28 @@ function ResultsScreen({ result, error, onBack }) {
             {contentSubTab === "newsletter" && (
               <div className="newsletter-preview">
                 <div className="newsletter-header">
-                  <h2 className="newsletter-title">Your Newsletter</h2>
-                  <p className="newsletter-subtitle">Curated insights delivered to your inbox</p>
+                  <div className="newsletter-branding">
+                    <div className="newsletter-icon">📧</div>
+                    <div>
+                      <h2 className="newsletter-title">ContentForge Newsletter</h2>
+                      <p className="newsletter-subtitle">Curated insights • Issue #42 • Today</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="newsletter-content">
+                  <div className="newsletter-greeting">Hello Reader,</div>
                   <div dangerouslySetInnerHTML={{ 
                     __html: formatNewsletterContent(result.v2?.newsletter?.content || result.v1?.newsletter?.content || '')
                   }} />
+                  <div className="newsletter-footer">
+                    <div className="newsletter-cta">
+                      <p className="cta-text">Found this valuable? Share it with your network.</p>
+                      <button className="cta-button">Forward to a Friend</button>
+                    </div>
+                    <div className="newsletter-signature">
+                      <p>Best regards,<br/>ContentForge Team</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -391,7 +450,7 @@ function ResultsScreen({ result, error, onBack }) {
               
               {/* Platform tabs */}
               <div className="platform-tabs-inline">
-                {["LinkedIn", "Twitter", "Newsletter"].map(platform => (
+                {["LinkedIn", "Twitter", "ContentForge Newsletter"].map(platform => (
                   <button 
                     key={platform}
                     className={`platform-tab-sm ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
@@ -422,40 +481,84 @@ function ResultsScreen({ result, error, onBack }) {
                   return (
                     <>
                       {contentSubTab === "linkedin" && (
-                        <div className="refined-linkedin">
-                          <div className="refined-card-header">
-                            <div className="avatar-sm">YU</div>
-                            <div className="user-info-compact">
-                              <span className="user-name">Your Name</span>
-                              <span className="user-meta">Now</span>
+                        <div className="linkedin-preview">
+                          <div className="linkedin-header">
+                            <div className="avatar">CF</div>
+                            <div className="user-info">
+                              <h4>ContentForge</h4>
+                              <p className="timestamp">AI Content Creator • 2d</p>
                             </div>
+                            <button className="follow-btn">+ Follow</button>
                           </div>
-                          <div className="refined-card-body">
+                          <div className="linkedin-content">
                             {currentVersion?.linkedin?.content}
                           </div>
-                          <div className="refined-card-footer">
-                            <span>Like</span>
-                            <span>Comment</span>
-                            <span>Share</span>
+                          <div className="linkedin-engagement-info">
+                            <span className="reaction-info">Aman Goswami and 34 others</span>
+                            <div className="engagement-stats">
+                              <span>10 comments</span>
+                              <span>•</span>
+                              <span>1 repost</span>
+                            </div>
+                          </div>
+                          <div className="engagement">
+                            <span className="engagement-btn">
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.46 11l-3.91-3.91a7 7 0 01-1.69-2.74l-.49-1.47A2.76 2.76 0 0010.76 1 2.75 2.75 0 008 3.74v1.12a9.19 9.19 0 00.46 2.85L8.89 9H4.12A2.12 2.12 0 002 11.12a2.16 2.16 0 00.92 1.76A2.11 2.11 0 002 14.62a2.14 2.14 0 001.28 2 2 2 0 00-.28 1 2.12 2.12 0 002 2.12v.14A2.12 2.12 0 007.12 22h7.49a8.08 8.08 0 003.58-.84l.31-.16H21V11zM19 19h-1l-.73.37a6.14 6.14 0 01-2.69.63H7.72a1 1 0 01-1-.72l-.25-.87-.85-.41A1 1 0 015 17l.17-1-.76-.74A1 1 0 014.27 14l.66-1.09-.73-1.1a.49.49 0 01.08-.7.48.48 0 01.34-.11h7.05l-1.31-3.92A7 7 0 0110 4.86V3.75a.77.77 0 01.75-.75.75.75 0 01.71.51L12 5a9 9 0 002.13 3.5l4.5 4.5H19z"></path></svg>
+                              Like
+                            </span>
+                            <span className="engagement-btn">
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 9h10v1H7zm0 4h7v-1H7z" opacity=".6"></path><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v13A1.5 1.5 0 003.5 18H5v3l6.29-3H20.5a1.5 1.5 0 001.5-1.5v-13A1.5 1.5 0 0020.5 2zM20 16.5a.5.5 0 01-.5.5h-11l-1.86.93L6 18.12V17H3.5a.5.5 0 01-.5-.5v-13a.5.5 0 01.5-.5h17a.5.5 0 01.5.5z"></path></svg>
+                              Comment
+                            </span>
+                            <span className="engagement-btn">
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M23 12l-4.61 7H16l4-6H8a3 3 0 01-3-3V4h2v5a1 1 0 001 1h12l-4-6h2.39z"></path></svg>
+                              Repost
+                            </span>
+                            <span className="engagement-btn">
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21 3L0 10l7.66 4.26L16 8l-6.26 8.34L14 24z"></path></svg>
+                              Send
+                            </span>
                           </div>
                         </div>
                       )}
                       
                       {contentSubTab === "twitter" && (
-                        <div className="refined-twitter">
+                        <div className="tweet-thread">
                           {(currentVersion?.twitter?.tweets || []).map((tweet, i, arr) => (
-                            <div key={i} className="refined-tweet">
-                              <div className="tweet-left-accent"></div>
-                              <div className="refined-tweet-body">
-                                <div className="refined-tweet-meta">
-                                  <div className="tweet-user-info">
-                                    <div className="avatar-xs">YU</div>
-                                    <span className="user-name">Your Username</span>
-                                    <span className="user-handle">@yourusername</span>
+                            <div key={i} className="tweet-wrapper">
+                              <div className="tweet-card">
+                                <div className="tweet-header">
+                                  <div className="tweet-avatar-wrapper">
+                                    <div className="avatar threads-avatar">CF</div>
+                                    {i < arr.length - 1 && <div className="thread-line"></div>}
                                   </div>
-                                  <span className="tweet-num">{i + 1}/{arr.length}</span>
+                                  <div className="tweet-main-content">
+                                    <div className="tweet-user-header">
+                                      <div className="user-info">
+                                        <h4>ContentForge</h4>
+                                        <span className="verified-badge">✓</span>
+                                        <p className="timestamp">@contentforge • 2h</p>
+                                      </div>
+                                      <button className="tweet-menu-btn">⋯</button>
+                                    </div>
+                                    <div className="tweet-number-badge">{i + 1}/{arr.length}</div>
+                                    <div className="tweet-content">{tweet}</div>
+                                    <div className="tweet-actions">
+                                      <button className="action-btn">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"></path></svg>
+                                      </button>
+                                      <button className="action-btn">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 014-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 01-4 4H3"></path></svg>
+                                      </button>
+                                      <button className="action-btn">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path></svg>
+                                      </button>
+                                      <button className="action-btn">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="refined-tweet-text">{tweet}</div>
                               </div>
                             </div>
                           ))}
@@ -463,14 +566,31 @@ function ResultsScreen({ result, error, onBack }) {
                       )}
                       
                       {contentSubTab === "newsletter" && (
-                        <div className="refined-newsletter">
-                          <div className="refined-newsletter-header">
-                            <span className="newsletter-label">Your Newsletter</span>
-                            <span className="newsletter-tagline">Curated insights delivered to your inbox</span>
+                        <div className="newsletter-preview">
+                          <div className="newsletter-header">
+                            <div className="newsletter-branding">
+                              <div className="newsletter-icon">📧</div>
+                              <div>
+                                <h2 className="newsletter-title">ContentForge Newsletter</h2>
+                                <p className="newsletter-subtitle">Curated insights • Issue #42 • Today</p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="refined-newsletter-body" dangerouslySetInnerHTML={{ 
-                            __html: formatNewsletterContent(currentVersion?.newsletter?.content || '')
-                          }} />
+                          <div className="newsletter-content">
+                            <div className="newsletter-greeting">Hello Reader,</div>
+                            <div dangerouslySetInnerHTML={{ 
+                              __html: formatNewsletterContent(currentVersion?.newsletter?.content || '')
+                            }} />
+                            <div className="newsletter-footer">
+                              <div className="newsletter-cta">
+                                <p className="cta-text">Found this valuable? Share it with your network.</p>
+                                <button className="cta-button">Forward to a Friend</button>
+                              </div>
+                              <div className="newsletter-signature">
+                                <p>Best regards,<br/>ContentForge Team</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </>
@@ -528,11 +648,11 @@ function ResultsScreen({ result, error, onBack }) {
             </div>
             
             {/* Platform tabs */}
-            <div className="platform-tabs">
+            <div className="tabs" style={{ marginBottom: '24px' }}>
               {["LinkedIn", "Twitter", "Newsletter"].map(platform => (
                 <button 
                   key={platform}
-                  className={`platform-tab ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
+                  className={`tab ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}
                   onClick={() => setContentSubTab(platform.toLowerCase())}
                 >
                   {platform}
@@ -540,7 +660,7 @@ function ResultsScreen({ result, error, onBack }) {
               ))}
             </div>
             
-            {/* Final content - use the latest version available */}
+            {/* Final content with better styling */}
             {(() => {
               const finalVersion = result.v5 || result.v4 || result.v3 || result.v2 || result.v1;
               if (!finalVersion) return <p>No content available.</p>;
@@ -551,30 +671,35 @@ function ResultsScreen({ result, error, onBack }) {
                     <div className="content-section">
                       <div className="linkedin-preview-compact">
                         <div className="linkedin-header-compact">
-                          <div className="avatar-sm">YU</div>
+                          <div className="avatar-sm">CF</div>
                           <div className="user-info-compact">
-                            <span className="user-name">Your Name</span>
-                            <span className="user-meta">Now</span>
+                            <span className="user-name">ContentForge</span>
+                            <span className="user-meta">AI Content Creator • 2d</span>
                           </div>
+                          <button className="follow-btn-sm">+ Follow</button>
                         </div>
-                        <div className="linkedin-body">
+                        <div className="linkedin-content-compact">
                           {finalVersion?.linkedin?.content}
                         </div>
-                        <div className="linkedin-actions">
-                          <span>Like</span>
-                          <span>Comment</span>
-                          <span>Share</span>
+                        <div className="linkedin-engagement-info-compact">
+                          <span className="reaction-info-sm">Aman Goswami and 34 others</span>
+                        </div>
+                        <div className="engagement-compact">
+                          <span>👍 Like</span>
+                          <span>💬 Comment</span>
+                          <span>🔄 Repost</span>
+                          <span>📤 Send</span>
                         </div>
                       </div>
-                      <div className="action-bar">
+                      <div className="action-bar" style={{ marginTop: '16px' }}>
                         <button 
-                          className="btn btn-primary btn-sm"
+                          className="btn btn-primary"
                           onClick={() => {
                             navigator.clipboard.writeText(finalVersion?.linkedin?.content || '');
                             alert('LinkedIn post copied to clipboard!');
                           }}
                         >
-                          Copy LinkedIn Post
+                          📋 Copy LinkedIn Post
                         </button>
                       </div>
                     </div>
@@ -584,32 +709,61 @@ function ResultsScreen({ result, error, onBack }) {
                     <div className="content-section">
                       <div className="tweet-thread-compact">
                         {(finalVersion?.twitter?.tweets || []).map((tweet, i, arr) => (
-                          <div key={i} className="tweet-item">
-                            <div className="tweet-left-border"></div>
-                            <div className="tweet-body">
-                              <div className="tweet-meta">
-                                <div className="tweet-user">
-                                  <div className="avatar-xs">YU</div>
-                                  <span className="user-name">Your Username</span>
-                                  <span className="user-handle">@yourusername</span>
+                          <div key={i} className="tweet-wrapper-compact">
+                            <div className="tweet-card-compact">
+                              <div className="tweet-header-compact">
+                                <div className="tweet-header-top">
+                                  <div className="tweet-user-section">
+                                    <span className="user-name">ContentForge</span>
+                                    <span className="verified-badge-sm">✓</span>
+                                    <span className="user-handle">@contentforge • 2h</span>
+                                  </div>
+                                  <button className="tweet-menu-btn-sm">⋯</button>
                                 </div>
-                                <span className="tweet-count">{i + 1}/{arr.length}</span>
+                                <span className="tweet-number-badge-sm">{i + 1}/{arr.length}</span>
                               </div>
-                              <div className="tweet-text">{tweet}</div>
+                              <div className="tweet-body-compact">
+                                <div className="avatar-xs">CF</div>
+                                <div className="tweet-content-wrapper">
+                                  <div className="tweet-content-compact">{tweet}</div>
+                                  <div className="tweet-actions-compact">
+                                    <button className="action-btn-sm">
+                                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"></path>
+                                      </svg>
+                                    </button>
+                                    <button className="action-btn-sm">
+                                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"></path>
+                                      </svg>
+                                    </button>
+                                    <button className="action-btn-sm">
+                                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path>
+                                      </svg>
+                                    </button>
+                                    <button className="action-btn-sm">
+                                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <div className="action-bar">
+                      <div className="action-bar" style={{ marginTop: '16px' }}>
                         <button 
-                          className="btn btn-primary btn-sm"
+                          className="btn btn-primary"
                           onClick={() => {
                             const threadText = (finalVersion?.twitter?.tweets || []).map((t, i) => `${i + 1}/${finalVersion?.twitter?.tweets.length} ${t}`).join('\n\n');
                             navigator.clipboard.writeText(threadText);
                             alert('Twitter thread copied to clipboard!');
                           }}
                         >
-                          Copy Twitter Thread
+                          📋 Copy Twitter Thread
                         </button>
                       </div>
                     </div>
@@ -617,27 +771,30 @@ function ResultsScreen({ result, error, onBack }) {
                   
                   {contentSubTab === "newsletter" && (
                     <div className="content-section">
-                      <div className="newsletter-compact">
-                        <div className="newsletter-accent"></div>
-                        <div className="newsletter-body">
-                          <div className="newsletter-meta">
-                            <span className="newsletter-label">Your Newsletter</span>
-                            <span className="newsletter-tagline">Curated insights delivered to your inbox</span>
+                      <div className="newsletter-preview-compact">
+                        <div className="newsletter-header-compact">
+                          <div className="newsletter-icon-sm">📧</div>
+                          <div>
+                            <h3 className="newsletter-title-compact">ContentForge Newsletter</h3>
+                            <p className="newsletter-subtitle-compact">Curated insights • Issue #42 • Today</p>
                           </div>
-                          <div className="newsletter-text" dangerouslySetInnerHTML={{ 
+                        </div>
+                        <div className="newsletter-content-compact">
+                          <div className="newsletter-greeting-sm">Hello Reader,</div>
+                          <div dangerouslySetInnerHTML={{ 
                             __html: formatNewsletterContent(finalVersion?.newsletter?.content || '')
                           }} />
                         </div>
                       </div>
-                      <div className="action-bar">
+                      <div className="action-bar" style={{ marginTop: '16px' }}>
                         <button 
-                          className="btn btn-primary btn-sm"
+                          className="btn btn-primary"
                           onClick={() => {
                             navigator.clipboard.writeText(finalVersion?.newsletter?.content || '');
-                            alert('Newsletter copied to clipboard!');
+                            alert('ContentForge Newsletter copied to clipboard!');
                           }}
                         >
-                          Copy Newsletter
+                          📋 Copy Newsletter
                         </button>
                       </div>
                     </div>

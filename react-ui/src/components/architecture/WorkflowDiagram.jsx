@@ -184,15 +184,15 @@ export default function WorkflowDiagram() {
           
           {/* Flow */}
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 bg-orange-100 border-2 border-orange-400 rounded-lg">
-              <span className="font-bold text-orange-700 text-sm">Reviewer</span>
+            <div className="px-3 py-1.5 bg-green-100 border-2 border-green-400 rounded-lg">
+              <span className="font-bold text-green-700 text-sm">Refiner</span>
             </div>
             <div className="flex items-center gap-1">
               <ArrowRight className="w-4 h-4 text-gray-600" />
               <ArrowRight className="w-4 h-4 text-gray-600 -ml-2" />
             </div>
-            <div className="px-3 py-1.5 bg-green-100 border-2 border-green-400 rounded-lg">
-              <span className="font-bold text-green-700 text-sm">Refiner</span>
+            <div className="px-3 py-1.5 bg-orange-100 border-2 border-orange-400 rounded-lg">
+              <span className="font-bold text-orange-700 text-sm">Reviewer</span>
             </div>
           </div>
           

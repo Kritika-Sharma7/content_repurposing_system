@@ -9,7 +9,7 @@ CLEAN DESIGN v4:
 """
 
 from typing import List, Optional, Literal, Dict, Any, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ============================================================================
@@ -48,6 +48,14 @@ class SummaryOutput(BaseModel):
         description="5-6 high-quality insights with complete sentences"
     )
     
+    @field_validator('core_message')
+    @classmethod
+    def validate_core_message_not_empty(cls, v: str) -> str:
+        """Ensure core_message is not empty or whitespace only."""
+        if not v or not v.strip():
+            raise ValueError("core_message cannot be empty or whitespace")
+        return v.strip()
+    
     @field_validator('key_points')
     @classmethod
     def validate_key_points(cls, v: List[KeyPoint]) -> List[KeyPoint]:
@@ -56,6 +64,15 @@ class SummaryOutput(BaseModel):
         if len(v) > 6:
             raise ValueError(f"Maximum 6 key_points allowed, got {len(v)}")
         return v
+    
+    @model_validator(mode='after')
+    def validate_unique_kp_ids(self):
+        """CRITICAL FIX #1: Ensure all key point IDs are unique."""
+        ids = [kp.id for kp in self.key_points]
+        if len(ids) != len(set(ids)):
+            duplicates = [id for id in ids if ids.count(id) > 1]
+            raise ValueError(f"Duplicate key point IDs found: {set(duplicates)}")
+        return self
     
     def get_critical_kps(self) -> List[KeyPoint]:
         """Get critical priority key points."""
@@ -76,6 +93,14 @@ class LinkedInOutput(BaseModel):
     used_kps: List[str] = Field(
         description="Key point IDs used (e.g., ['kp_1', 'kp_2'])"
     )
+    
+    @field_validator('content')
+    @classmethod
+    def validate_content_not_empty(cls, v: str) -> str:
+        """CRITICAL FIX #5: Ensure content is not empty or whitespace."""
+        if not v or not v.strip():
+            raise ValueError("LinkedIn content cannot be empty or whitespace")
+        return v.strip()
 
 
 class TwitterOutput(BaseModel):
@@ -111,6 +136,14 @@ class NewsletterOutput(BaseModel):
     used_kps: List[str] = Field(
         description="Key point IDs used (e.g., ['kp_1', 'kp_2', 'kp_3', 'kp_4'])"
     )
+    
+    @field_validator('content')
+    @classmethod
+    def validate_content_not_empty(cls, v: str) -> str:
+        """CRITICAL FIX #5: Ensure content is not empty or whitespace."""
+        if not v or not v.strip():
+            raise ValueError("Newsletter content cannot be empty or whitespace")
+        return v.strip()
 
 
 class FormattedOutput(BaseModel):
@@ -149,8 +182,9 @@ class ReviewIssue(BaseModel):
         description="Direction on how to fix (NOT rewrite)"
     )
     affects: List[str] = Field(
-        default_factory=list,
-        description="Platforms affected by this issue"
+        ...,
+        min_length=1,
+        description="CRITICAL FIX #2: Platforms affected (must specify at least one)"
     )
     missing_kps: List[str] = Field(
         default_factory=list,
@@ -263,6 +297,10 @@ class PipelineResult(BaseModel):
     )
     total_issues: int = Field(default=0, description="Total issues found")
     issues_fixed: int = Field(default=0, description="Issues fixed")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="CRITICAL FIX #3 & #4: Additional metadata (termination_reason, unfixable_issues, stuck_issues)"
+    )
 
 
 # ============================================================================

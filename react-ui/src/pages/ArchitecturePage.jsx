@@ -232,9 +232,9 @@ export default function ArchitecturePage() {
                   <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
                 </marker>
               </defs>
-              {/* Curved path from right (Refiner) to left (Reviewer) */}
+              {/* Curved path from Refiner (position 5) back to Reviewer (position 4) */}
               <path
-                d="M 450 20 Q 450 80, 375 80 L 175 80 Q 100 80, 100 20"
+                d="M 440 20 Q 440 80, 410 80 L 385 80 Q 360 80, 360 20"
                 stroke="#3b82f6"
                 strokeWidth="2.5"
                 fill="none"

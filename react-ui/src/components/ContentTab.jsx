@@ -14,7 +14,7 @@ export default function ContentTab({ content, preferences }) {
   const subTabs = [
     { id: "linkedin", label: "LinkedIn", icon: "💼" },
     { id: "twitter", label: "Twitter", icon: "🐦" },
-    { id: "newsletter", label: "Newsletter", icon: "📧" }
+    { id: "newsletter", label: "ContentForge Newsletter", icon: "📧" }
   ];
 
   return (
@@ -159,7 +159,7 @@ function NewsletterPreview({ content }) {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-8" style={{ fontFamily: 'Georgia, serif' }}>
         <div className="bg-white p-6 rounded shadow-sm">
           <div className="border-b border-gray-200 pb-4 mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Newsletter Title</h2>
+            <h2 className="text-xl font-bold text-gray-900">ContentForge Newsletter</h2>
             <p className="text-sm text-gray-600">Issue #XX • Today</p>
           </div>
           

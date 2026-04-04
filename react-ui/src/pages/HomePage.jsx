@@ -11,12 +11,13 @@ export default function HomePage() {
         {/* Left Section - Hero Text */}
         <div style={{ flex: '1 1 50%', maxWidth: '620px' }}>
           <h1 style={{ 
-            fontSize: '3.75rem', 
+            fontSize: '3.5rem', 
             fontWeight: '700', 
-            lineHeight: '1.15', 
+            lineHeight: '1.1', 
             marginBottom: '28px', 
             color: '#111827', 
-            letterSpacing: '-0.025em' 
+            letterSpacing: '-0.025em',
+            maxWidth: '580px'
           }}>
             Multi-Agent Content Repurposing System
           </h1>
@@ -272,7 +273,7 @@ export default function HomePage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                   <div style={{ width: '22px', height: '22px', background: '#3b82f6', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px' }}>✉</div>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a' }}>Newsletter</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a' }}>ContentForge Newsletter</span>
                 </div>
                 <div style={{ height: '4px', background: '#f3f4f6', borderRadius: '2px', marginBottom: '5px' }}></div>
                 <div style={{ height: '4px', background: '#f3f4f6', borderRadius: '2px', width: '80%', marginBottom: '5px' }}></div>

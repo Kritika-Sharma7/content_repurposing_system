@@ -108,6 +108,9 @@ class PipelineOrchestrator:
         all_versions: Dict[int, Union[FormattedOutput, RefinedOutput]] = {1: v1}
         final_refined: Optional[RefinedOutput] = None
         
+        # CRITICAL FIX #3: Track review history for stuck loop detection
+        review_history: List[ReviewOutput] = []
+        
         for iteration in range(1, self.max_iterations + 1):
             self._log(f"  --- Iteration {iteration}/{self.max_iterations} ---")
             
@@ -117,10 +120,25 @@ class PipelineOrchestrator:
             
             # Store all reviews
             all_reviews[iteration] = review
+            review_history.append(review)
             
             issues_count = len(review.issues)
             total_issues += issues_count
             self._log(f"  [OK] Found {issues_count} issues (status: {review.status})")
+            
+            # CRITICAL FIX #3: Check for stuck loop
+            is_stuck, stuck_issues = self._detect_stuck_loop(review_history)
+            if is_stuck:
+                self._log(f"  [WARN] Stuck loop detected: issues {stuck_issues} repeating across iterations")
+                result_metadata = {
+                    'termination_reason': 'stuck_loop',
+                    'stuck_issues': list(stuck_issues)
+                }
+                # Create final result with stuck loop metadata
+                return self._create_final_result(
+                    summary, v1, all_versions, all_reviews, 
+                    iterations, total_issues, total_fixed, result_metadata
+                )
             
             # STOP CONDITION 1: No issues
             if review.status == "ok" or issues_count == 0:
@@ -159,6 +177,18 @@ class PipelineOrchestrator:
                 refined=refined,
                 issues_fixed=changes_count
             ))
+            
+            # CRITICAL FIX #4: Check if refiner refused to fix issues
+            if issues_count > 0 and changes_count == 0:
+                self._log(f"  [WARN] Refiner unable to fix {issues_count} issues - stopping loop")
+                result_metadata = {
+                    'termination_reason': 'refiner_unable_to_fix',
+                    'unfixable_issues': [issue.dict() for issue in review.issues]
+                }
+                return self._create_final_result(
+                    summary, v1, all_versions, all_reviews,
+                    iterations, total_issues, total_fixed, result_metadata
+                )
             
             # STOP CONDITION 2: No changes made
             if changes_count == 0:
@@ -208,7 +238,78 @@ class PipelineOrchestrator:
             review_v5=all_reviews.get(5),
             iterations=iterations,
             total_issues=total_issues,
-            issues_fixed=total_fixed
+            issues_fixed=total_fixed,
+            metadata={}
+        )
+
+    def _detect_stuck_loop(self, review_history: List[ReviewOutput]) -> tuple:
+        """
+        CRITICAL FIX #3: Detect if same issues keep appearing across iterations.
+        
+        Returns:
+            (is_stuck, repeated_issue_ids): True if stuck, with set of issue IDs that repeat
+        """
+        if len(review_history) < 3:
+            return False, set()
+        
+        # Get issue IDs from last 3 reviews
+        recent_issues = [
+            set([issue.issue_id for issue in review.issues])
+            for review in review_history[-3:]
+        ]
+        
+        # Find issues that appear in all 3 recent reviews
+        if len(recent_issues) >= 3:
+            repeated = recent_issues[0] & recent_issues[1] & recent_issues[2]
+            
+            if len(repeated) > 0:
+                return True, repeated
+        
+        return False, set()
+    
+    def _create_final_result(
+        self,
+        summary: SummaryOutput,
+        v1: FormattedOutput,
+        all_versions: Dict[int, Union[FormattedOutput, RefinedOutput]],
+        all_reviews: Dict[int, ReviewOutput],
+        iterations: List[IterationResult],
+        total_issues: int,
+        total_fixed: int,
+        metadata: Dict[str, Any]
+    ) -> PipelineResult:
+        """
+        CRITICAL FIX #4: Helper to create PipelineResult with metadata tracking.
+        """
+        # Extract individual version data
+        v2_data = all_versions.get(2) if isinstance(all_versions.get(2), RefinedOutput) else None
+        v3_data = all_versions.get(3) if isinstance(all_versions.get(3), RefinedOutput) else None
+        v4_data = all_versions.get(4) if isinstance(all_versions.get(4), RefinedOutput) else None
+        v5_data = all_versions.get(5) if isinstance(all_versions.get(5), RefinedOutput) else None
+        
+        self._log("=" * 50)
+        self._log(f"Pipeline terminated: {metadata.get('termination_reason', 'completed')}")
+        self._log(f"  Iterations: {len(iterations)}")
+        self._log(f"  Total issues found: {total_issues}")
+        self._log(f"  Total issues fixed: {total_fixed}")
+        self._log("=" * 50)
+        
+        return PipelineResult(
+            summary=summary,
+            v1=v1,
+            review_v1=all_reviews.get(1),
+            v2=v2_data,
+            review_v2=all_reviews.get(2),
+            v3=v3_data,
+            review_v3=all_reviews.get(3),
+            v4=v4_data,
+            review_v4=all_reviews.get(4),
+            v5=v5_data,
+            review_v5=all_reviews.get(5),
+            iterations=iterations,
+            total_issues=total_issues,
+            issues_fixed=total_fixed,
+            metadata=metadata
         )
 
     def _content_unchanged(
