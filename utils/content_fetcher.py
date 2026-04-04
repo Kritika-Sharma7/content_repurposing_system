@@ -13,6 +13,7 @@ try:
     HAS_WEB_DEPS = True
 except ImportError:
     HAS_WEB_DEPS = False
+    BeautifulSoup = None
 
 
 class ContentFetchError(Exception):
