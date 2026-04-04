@@ -6,7 +6,7 @@ const iterations = [
     iteration: 1,
     score: 0.78,
     scoreDisplay: '78%',
-    status: 'below_threshold',
+    status: 'has_issues',
     issues: 3,
     issueTypes: ['missing_coverage', 'tweet_length', 'weak_hook'],
     changes: 0,
@@ -26,11 +26,11 @@ const iterations = [
     iteration: 3,
     score: 0.92,
     scoreDisplay: '92%',
-    status: 'threshold_met',
+    status: 'no_critical_issues',
     issues: 0,
     issueTypes: [],
     changes: 2,
-    message: 'Quality threshold (90%) achieved. All key_points covered.',
+    message: 'No critical issues remain. All key_points covered.',
   },
 ];
 
@@ -57,9 +57,9 @@ export default function FeedbackLoopViz() {
           <span className="font-semibold text-gray-700">Iterative Feedback Loop</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500">Target:</span>
+          <span className="text-gray-500">Until:</span>
           <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-            {threshold * 100}%
+            No Critical Issues
           </span>
         </div>
       </div>
@@ -82,13 +82,13 @@ export default function FeedbackLoopViz() {
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 via-yellow-400 to-green-500 rounded-full transition-all duration-1000"
             style={{ width: '92%' }}
           />
-          {/* Threshold marker */}
+          {/* Final state marker */}
           <div 
             className="absolute top-0 bottom-0 w-0.5 bg-green-700 z-10"
-            style={{ left: `${threshold * 100}%` }}
+            style={{ right: '8%' }}
           >
             <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-green-700 font-semibold whitespace-nowrap">
-              90% threshold
+              Complete
             </div>
           </div>
         </div>
@@ -99,8 +99,8 @@ export default function FeedbackLoopViz() {
         {iterations.map((it, idx) => {
           const isHovered = hoveredIteration === it.iteration;
           const isExpanded = expandedIteration === it.iteration;
-          const isFinal = it.status === 'threshold_met';
-          const progressColor = it.score >= threshold ? 'bg-green-500' : it.score >= 0.80 ? 'bg-yellow-500' : 'bg-orange-500';
+          const isFinal = it.status === 'no_critical_issues';
+          const progressColor = it.status === 'no_critical_issues' ? 'bg-green-500' : it.score >= 0.80 ? 'bg-yellow-500' : 'bg-orange-500';
           const borderColor = isFinal ? 'border-green-300' : it.score >= 0.80 ? 'border-yellow-200' : 'border-orange-200';
           const bgColor = isFinal ? 'bg-green-50' : it.score >= 0.80 ? 'bg-yellow-50' : 'bg-white';
 
@@ -238,10 +238,9 @@ export default function FeedbackLoopViz() {
           View algorithm
         </summary>
         <pre className="mt-2 text-xs bg-slate-900 text-slate-200 rounded-lg p-3 overflow-x-auto">
-{`while score < threshold and iteration < max_iterations:
+{`while has_critical_issues(review) and iteration < max_iterations:
     review = reviewer.run(summary, formatted)
-    score = compute_weighted_score(review)
-    if score < threshold:
+    if has_critical_issues(review):
         refined = refiner.run(summary, formatted, review)
         formatted = refined
     iteration += 1`}

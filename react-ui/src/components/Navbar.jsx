@@ -8,7 +8,7 @@ export default function Navbar() {
       <div className="container topbar-inner">
         <div className="brand">
           <span className="brand-mark" />
-          <span>MultiAgent Studio</span>
+          <span>Multi-Agent Content System</span>
         </div>
 
         <nav className="topnav-links">

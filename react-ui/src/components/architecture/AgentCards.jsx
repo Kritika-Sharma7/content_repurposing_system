@@ -9,10 +9,10 @@ const agents = [
     bgColor: 'bg-blue-50',
     textColor: 'text-blue-700',
     iconBg: 'bg-blue-100',
-    role: 'Extracts Content DNA from raw input. Outputs semantic key_points as structured units with IDs for downstream traceability.',
+    role: 'Extracts structured key points that serve as the single source of truth for downstream agents',
     input: '{ raw_text: string }',
-    output: 'SummaryOutput { title, core_message, key_points[{id, concept, claim, implication}], intent, tone }',
-    keyFeature: 'Semantic units enable deterministic coverage tracking',
+    output: 'Structured key_points array (ground truth)',
+    keyFeature: 'Identifies and structures key ideas',
   },
   {
     name: 'Formatter',
@@ -22,10 +22,10 @@ const agents = [
     bgColor: 'bg-purple-50',
     textColor: 'text-purple-700',
     iconBg: 'bg-purple-100',
-    role: 'Transforms summary into platform-specific content with full source traceability.',
+    role: 'Generates platform-specific outputs from the same underlying key points',
     input: 'SummaryOutput + UserPreferences',
-    output: 'FormattedOutput { linkedin, twitter, newsletter } with derived_from[] per piece',
-    keyFeature: 'Hard constraints: tweets ≤280 chars, thread 5-8 tweets',
+    output: 'LinkedIn, Twitter, Newsletter variants',
+    keyFeature: 'Transforms key points into format-specific content',
   },
   {
     name: 'Reviewer',
@@ -35,10 +35,10 @@ const agents = [
     bgColor: 'bg-orange-50',
     textColor: 'text-orange-700',
     iconBg: 'bg-orange-100',
-    role: 'Evaluates content with deterministic scoring + LLM analysis. Produces structured issues for targeted refinement.',
+    role: 'Compares generated content against key points to detect missing ideas, weak clarity, and inconsistencies',
     input: 'SummaryOutput + FormattedOutput',
-    output: 'ReviewOutput { scores, coverage_analysis, violations[], issues[] }',
-    keyFeature: 'coverage = used_key_points / total_key_points (deterministic)',
+    output: 'Structured issues list (no rewriting)',
+    keyFeature: 'Identifies coverage, clarity, and consistency issues',
   },
   {
     name: 'Refiner',
@@ -48,67 +48,60 @@ const agents = [
     bgColor: 'bg-green-50',
     textColor: 'text-green-700',
     iconBg: 'bg-green-100',
-    role: 'Makes targeted fixes based on reviewer issues. No full rewrites, only surgical changes with audit trail.',
+    role: 'Improves content strictly based on reviewer feedback without introducing new ideas',
     input: 'SummaryOutput + FormattedOutput + ReviewOutput',
-    output: 'RefinedOutput { content, changes_applied[{issue_id, action, target}] }',
-    keyFeature: 'Each change links to specific issue_id for auditability',
+    output: 'Updated content + change log (versioned)',
+    keyFeature: 'Maps each issue to a targeted fix',
   },
 ];
 
 export default function AgentCards() {
   return (
-    <div className="agent-cards grid grid-cols-1 md:grid-cols-2 gap-6">
-      {agents.map((agent) => {
-        const Icon = agent.icon;
+    <div className="agent-cards max-w-5xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {agents.map((agent) => {
+          const Icon = agent.icon;
 
-        return (
-          <div
-            key={agent.name}
-            className={`
-              agent-card-enhanced rounded-xl border-3 p-6
-              ${agent.borderColor} bg-white
-              hover:shadow-2xl transition-all duration-300
-              hover:scale-102
-            `}
-            style={{ borderWidth: '2px' }}
-          >
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-5">
-              <div className={`p-3 rounded-xl ${agent.iconBg} shadow-md`}>
-                <Icon className={`w-7 h-7 ${agent.textColor}`} />
+          return (
+            <div
+              key={agent.name}
+              className={`
+                agent-card-enhanced rounded-xl border-2 p-4
+                ${agent.borderColor} bg-white
+                hover:shadow-lg transition-all duration-300
+                hover:scale-[1.02] h-full
+              `}
+            >
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className={`p-2.5 rounded-xl ${agent.iconBg} shadow-sm`}>
+                  <Icon className={`w-6 h-6 ${agent.textColor}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-bold text-lg ${agent.textColor} mb-1`}>{agent.name}</h3>
+                  <p className="text-sm text-gray-700 leading-snug">{agent.role}</p>
+                </div>
               </div>
-              <div>
-                <h3 className={`font-bold text-xl ${agent.textColor} mb-2`}>{agent.name}</h3>
-                <p className="text-sm text-gray-700 leading-relaxed">{agent.role}</p>
+
+              {/* I/O */}
+              <div className="space-y-3">
+                <div>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Process</span>
+                  <div className={`text-xs mt-1 p-2.5 rounded-lg ${agent.bgColor} ${agent.textColor} font-medium leading-relaxed`}>
+                    {agent.keyFeature}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Output</span>
+                  <div className={`text-xs mt-1 p-2.5 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono leading-relaxed`}>
+                    {agent.output}
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* I/O */}
-            <div className="space-y-4">
-              <div>
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Input</span>
-                <code className={`block text-xs mt-2 p-3 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono leading-relaxed`}>
-                  {agent.input}
-                </code>
-              </div>
-              <div>
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Output</span>
-                <code className={`block text-xs mt-2 p-3 rounded-lg ${agent.bgColor} ${agent.textColor} font-mono leading-relaxed`}>
-                  {agent.output}
-                </code>
-              </div>
-            </div>
-
-            {/* Key feature */}
-            <div className={`mt-5 pt-4 border-t-2 ${agent.borderColor}`}>
-              <div className="flex items-start gap-2">
-                <span className={`text-sm font-bold ${agent.textColor}`}>💡 Key Feature:</span>
-                <span className="text-sm text-gray-700">{agent.keyFeature}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
