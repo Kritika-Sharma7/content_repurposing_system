@@ -199,11 +199,11 @@ class ReviewOutput(BaseModel):
 class Change(BaseModel):
     """A specific change made by refiner."""
     issue_id: str = Field(description="Which issue this fixes")
-    action: Literal["rewrite", "add", "remove", "shorten", "restructure"] = Field(
+    action: Literal["rewrite", "add", "integrate", "remove", "shorten", "restructure"] = Field(
         description="Type of change"
     )
     target: str = Field(
-        description="What was changed (e.g., 'linkedin_hook', 'tweet_3')"
+        description="Platforms or sections changed (e.g., 'linkedin, twitter' or 'linkedin_hook')"
     )
     before: str = Field(description="Content before change")
     after: str = Field(description="Content after change")

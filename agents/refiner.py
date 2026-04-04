@@ -109,8 +109,8 @@ If the fix feels weak or appended → REWRITE IT.
 For each issue:
 - Create EXACTLY ONE change entry
 - issue_id: MUST match the reviewer's issue_id exactly
-- action: "rewrite" | "add" | "integrate"
-- target: list ALL affected formats that were modified
+- action: "rewrite" | "add" | "integrate" | "remove" | "shorten" | "restructure"
+- target: comma-separated list of affected formats (e.g., "linkedin, twitter" or "newsletter")
 - before: representative snippet showing the problem
 - after: representative snippet showing the STRONG fix
 
@@ -306,7 +306,7 @@ For EACH coverage/clarity issue:
    - For coverage: explain the idea with cause-effect (not just mention it)
    - Integrate naturally — do NOT append sentences
 4. Each change.issue_id MUST match the issue_id exactly
-5. Each change.target MUST list ALL formats modified
+5. Each change.target MUST be a comma-separated string of formats (e.g., "linkedin, twitter")
 
 ⚠️ VALIDATION: Reviewer should mark each key point as "strong" — not just "present"."""
 

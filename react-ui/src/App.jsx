@@ -14,41 +14,41 @@ function SimpleArchPage() {
         A disciplined multi-agent pipeline that transforms long-form content into platform-specific posts.
       </p>
       
-      <div style={{display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px", marginBottom: "24px", padding: "24px", background: "#fff", borderRadius: "12px", border: "1px solid #e5e5e5"}}>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+      <div style={{display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginBottom: "24px", padding: "24px", background: "#fff", borderRadius: "12px", border: "1px solid #e5e5e5", overflowX: "auto"}}>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>1</div>
-          <div style={{fontWeight: "600"}}>Input</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Long-form content</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Input</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Long-form content</div>
         </div>
-        <span style={{alignSelf: "center", color: "#999"}}>→</span>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+        <span style={{color: "#999", flex: "0 0 auto"}}>→</span>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>2</div>
-          <div style={{fontWeight: "600"}}>Summarizer</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Extract insights</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Summarizer</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Extract insights</div>
         </div>
-        <span style={{alignSelf: "center", color: "#999"}}>→</span>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+        <span style={{color: "#999", flex: "0 0 auto"}}>→</span>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>3</div>
-          <div style={{fontWeight: "600"}}>Formatter</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Platform adapt</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Formatter</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Platform adapt</div>
         </div>
-        <span style={{alignSelf: "center", color: "#999"}}>→</span>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+        <span style={{color: "#999", flex: "0 0 auto"}}>→</span>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>4</div>
-          <div style={{fontWeight: "600"}}>Reviewer</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Quality check</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Reviewer</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Quality check</div>
         </div>
-        <span style={{alignSelf: "center", color: "#999"}}>→</span>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+        <span style={{color: "#999", flex: "0 0 auto"}}>→</span>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>5</div>
-          <div style={{fontWeight: "600"}}>Refiner</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Targeted fixes</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Refiner</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Targeted fixes</div>
         </div>
-        <span style={{alignSelf: "center", color: "#999"}}>→</span>
-        <div style={{padding: "16px 20px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "100px"}}>
+        <span style={{color: "#999", flex: "0 0 auto"}}>→</span>
+        <div style={{padding: "14px 16px", border: "1px solid #e5e5e5", borderRadius: "10px", textAlign: "center", minWidth: "90px", flex: "0 0 auto"}}>
           <div style={{fontSize: "24px"}}>6</div>
-          <div style={{fontWeight: "600"}}>Output</div>
-          <div style={{fontSize: "12px", color: "#666"}}>Ready posts</div>
+          <div style={{fontWeight: "600", fontSize: "14px"}}>Output</div>
+          <div style={{fontSize: "11px", color: "#666"}}>Ready posts</div>
         </div>
       </div>
       
@@ -93,12 +93,12 @@ function SimpleArchPage() {
       <div style={{background: "#fff", border: "1px solid #e5e5e5", borderRadius: "12px", padding: "24px", marginBottom: "24px"}}>
         <h2 style={{fontSize: "1.25rem", marginBottom: "20px"}}>Design Principles</h2>
         <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px"}}>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>Disciplined Workflow</strong><br/><span style={{color: "#666"}}>Each agent has a single responsibility</span></div></div>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>1:1 Issue Mapping</strong><br/><span style={{color: "#666"}}>Every issue gets exactly one fix</span></div></div>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>Quality Gates</strong><br/><span style={{color: "#666"}}>Reviewer prevents low-quality content</span></div></div>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>Platform Awareness</strong><br/><span style={{color: "#666"}}>Content adapted per platform</span></div></div>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>Convergence Control</strong><br/><span style={{color: "#666"}}>Loops terminate on quality threshold</span></div></div>
-          <div style={{display: "flex", gap: "12px", padding: "12px", background: "#f9fafb", borderRadius: "8px"}}><span style={{color: "#22c55e", fontWeight: "bold"}}>OK</span><div><strong>Full Traceability</strong><br/><span style={{color: "#666"}}>Outputs trace to source</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>Disciplined Workflow</strong><br/><span style={{color: "#666"}}>Each agent has a single responsibility</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>1:1 Issue Mapping</strong><br/><span style={{color: "#666"}}>Every issue gets exactly one fix</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>Quality Gates</strong><br/><span style={{color: "#666"}}>Reviewer prevents low-quality content</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>Platform Awareness</strong><br/><span style={{color: "#666"}}>Content adapted per platform</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>Convergence Control</strong><br/><span style={{color: "#666"}}>Loops terminate on quality threshold</span></div></div>
+          <div style={{padding: "16px", background: "#f9fafb", borderRadius: "8px"}}><div><strong>Full Traceability</strong><br/><span style={{color: "#666"}}>Outputs trace to source</span></div></div>
         </div>
       </div>
       
@@ -107,7 +107,7 @@ function SimpleArchPage() {
         <div style={{display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px"}}>
           <div style={{background: "#f9fafb", borderRadius: "8px", padding: "16px"}}>
             <h4 style={{margin: "0 0 12px"}}>Backend</h4>
-            <ul style={{margin: 0, paddingLeft: "20px", color: "#4b5563"}}><li>Python FastAPI server</li><li>Pydantic validation</li><li>OpenAI GPT integration</li><li>Mock mode</li></ul>
+            <ul style={{margin: 0, paddingLeft: "20px", color: "#4b5563"}}><li>Python FastAPI server</li><li>Pydantic validation</li><li>OpenAI GPT integration</li></ul>
           </div>
           <div style={{background: "#f9fafb", borderRadius: "8px", padding: "16px"}}>
             <h4 style={{margin: "0 0 12px"}}>Frontend</h4>

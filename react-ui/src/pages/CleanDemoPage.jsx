@@ -2,9 +2,26 @@ import React, { useState } from "react";
 
 const API_BASE = "http://127.0.0.1:8000";
 
-function InputScreen({ onContinue }) {
+// Helper function to format newsletter content
+function formatNewsletterContent(content) {
+  if (!content) return '';
+  
+  return content
+    // Remove markdown headers (##)
+    .replace(/^##\s+(.+)$/gm, '<h3 class="newsletter-heading">$1</h3>')
+    // Convert **bold** to <strong>
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Convert line breaks
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br />');
+}
+
+function InputScreen({ onGenerate }) {
   const [text, setText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [tone, setTone] = useState("professional");
+  const [audience, setAudience] = useState("general");
+  const [customAudience, setCustomAudience] = useState("");
   
   const wordCount = text.trim().split(/\s+/).filter(w => w).length;
   
@@ -15,10 +32,28 @@ function InputScreen({ onContinue }) {
     e.preventDefault();
   };
   
+  const tones = [
+    "Professional", "Casual", "Analytical", "Storytelling", "Persuasive"
+  ];
+  
+  const audiences = [
+    "Developers", "Founders", "Students", "General"
+  ];
+  
+  const handleGenerate = () => {
+    onGenerate({
+      text,
+      tone: tone.toLowerCase(),
+      audience: audience === "custom" ? customAudience : audience.toLowerCase()
+    });
+  };
+  
+  const isValid = text.trim().length >= 50 && (audience !== 'custom' || customAudience.trim());
+  
   return (
     <div className="text-center">
-      <h1>Share your content</h1>
-      <p>Paste your article, blog post, or idea to get started</p>
+      <h1>Transform your content</h1>
+      <p>Paste your article, blog post, or idea and customize your preferences</p>
       
       <div className="textarea-container">
         <textarea
@@ -37,43 +72,7 @@ function InputScreen({ onContinue }) {
         </button>
       </div>
       
-      <button 
-        className="btn btn-primary mt-6"
-        disabled={text.trim().length < 50}
-        onClick={() => onContinue(text)}
-      >
-        Continue
-      </button>
-    </div>
-  );
-}
-
-function PreferencesScreen({ onGenerate, onBack }) {
-  const [tone, setTone] = useState("professional");
-  const [audience, setAudience] = useState("general");
-  const [customAudience, setCustomAudience] = useState("");
-  
-  const tones = [
-    "Professional", "Casual", "Analytical", "Storytelling", "Persuasive"
-  ];
-  
-  const audiences = [
-    "Developers", "Founders", "Students", "General"
-  ];
-  
-  const handleGenerate = () => {
-    onGenerate({
-      tone: tone.toLowerCase(),
-      audience: audience === "custom" ? customAudience : audience.toLowerCase()
-    });
-  };
-  
-  return (
-    <div className="text-center">
-      <h1>Set your preferences</h1>
-      <p>Choose tone and audience to personalize your content</p>
-      
-      <div className="mb-6">
+      <div className="mb-6 mt-6">
         <h3 className="text-left mb-4">Tone</h3>
         <div className="pill-group">
           {tones.map(t => (
@@ -120,18 +119,13 @@ function PreferencesScreen({ onGenerate, onBack }) {
         )}
       </div>
       
-      <div className="flex justify-between items-center">
-        <button className="btn btn-secondary" onClick={onBack}>
-          Back
-        </button>
-        <button 
-          className="btn btn-primary"
-          onClick={handleGenerate}
-          disabled={audience === 'custom' && !customAudience.trim()}
-        >
-          Generate Content
-        </button>
-      </div>
+      <button 
+        className="btn btn-primary mt-6"
+        disabled={!isValid}
+        onClick={handleGenerate}
+      >
+        Generate Content
+      </button>
     </div>
   );
 }
@@ -249,10 +243,10 @@ function ResultsScreen({ result, error, onBack }) {
                   <div key={i} className="tweet-wrapper">
                     <div className="tweet-card">
                       <div className="tweet-header">
-                        <div className="avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>YU</div>
+                        <div className="avatar">YU</div>
                         <div className="user-info">
-                          <h4 style={{ fontSize: '14px' }}>Your Username</h4>
-                          <p className="timestamp" style={{ fontSize: '12px' }}>@yourusername</p>
+                          <h4>Your Username</h4>
+                          <p className="timestamp">@yourusername</p>
                         </div>
                       </div>
                       <div className="tweet-number">{i + 1}/{arr.length}</div>
@@ -266,10 +260,13 @@ function ResultsScreen({ result, error, onBack }) {
             
             {contentSubTab === "newsletter" && (
               <div className="newsletter-preview">
-                <h2 className="newsletter-title">Newsletter</h2>
+                <div className="newsletter-header">
+                  <h2 className="newsletter-title">Your Newsletter</h2>
+                  <p className="newsletter-subtitle">Curated insights delivered to your inbox</p>
+                </div>
                 <div className="newsletter-content">
                   <div dangerouslySetInnerHTML={{ 
-                    __html: (result.v2?.newsletter?.content || result.v1?.newsletter?.content || '').replace(/\n/g, '<br />') 
+                    __html: formatNewsletterContent(result.v2?.newsletter?.content || result.v1?.newsletter?.content || '')
                   }} />
                 </div>
               </div>
@@ -369,10 +366,10 @@ function ResultsScreen({ result, error, onBack }) {
                   <div key={i} className="tweet-wrapper">
                     <div className="tweet-card">
                       <div className="tweet-header">
-                        <div className="avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>YU</div>
+                        <div className="avatar">YU</div>
                         <div className="user-info">
-                          <h4 style={{ fontSize: '14px' }}>Your Username</h4>
-                          <p className="timestamp" style={{ fontSize: '12px' }}>@yourusername</p>
+                          <h4>Your Username</h4>
+                          <p className="timestamp">@yourusername</p>
                         </div>
                       </div>
                       <div className="tweet-number">{i + 1}/{arr.length}</div>
@@ -386,10 +383,13 @@ function ResultsScreen({ result, error, onBack }) {
             
             {contentSubTab === "newsletter" && (
               <div className="newsletter-preview">
-                <h2 className="newsletter-title">Newsletter</h2>
+                <div className="newsletter-header">
+                  <h2 className="newsletter-title">Your Newsletter</h2>
+                  <p className="newsletter-subtitle">Curated insights delivered to your inbox</p>
+                </div>
                 <div className="newsletter-content">
                   <div dangerouslySetInnerHTML={{ 
-                    __html: (refinedVersion === 'v2' ? result.v2?.newsletter?.content : result.v1?.newsletter?.content || '').replace(/\n/g, '<br />') 
+                    __html: formatNewsletterContent(refinedVersion === 'v2' ? result.v2?.newsletter?.content : result.v1?.newsletter?.content || '')
                   }} />
                 </div>
               </div>
@@ -415,7 +415,7 @@ function ResultsScreen({ result, error, onBack }) {
         )}
       </div>
       
-      <div className="text-center mt-6">
+      <div className="text-center mt-8">
         <button className="btn btn-secondary" onClick={onBack}>
           Generate New Content
         </button>
@@ -425,7 +425,7 @@ function ResultsScreen({ result, error, onBack }) {
 }
 
 export default function CleanDemoPage() {
-  const [step, setStep] = useState(1); // 1: Input, 2: Preferences, 3: Results
+  const [step, setStep] = useState(1); // 1: Input, 2: Results
   const [inputText, setInputText] = useState("");
   const [preferences, setPreferences] = useState({
     tone: "professional",
@@ -436,13 +436,9 @@ export default function CleanDemoPage() {
   const [loadingStep, setLoadingStep] = useState("");
   const [error, setError] = useState("");
 
-  const handleInputContinue = (text) => {
+  const handleGenerate = async ({ text, tone, audience }) => {
     setInputText(text);
-    setStep(2);
-  };
-
-  const handleGenerate = async (prefs) => {
-    setPreferences(prefs);
+    setPreferences({ tone, audience });
     setIsLoading(true);
     setLoadingStep("Extracting insights...");
     setError("");
@@ -471,10 +467,10 @@ export default function CleanDemoPage() {
         },
         body: JSON.stringify({
           input_type: "text",
-          content: inputText,
+          content: text,
           user_preferences: {
-            tone: prefs.tone,
-            audience: prefs.audience,
+            tone: tone,
+            audience: audience,
             goal: "engagement",
             platforms: ["linkedin", "twitter", "newsletter"]
           },
@@ -497,7 +493,7 @@ export default function CleanDemoPage() {
       }
 
       setResult(data.result);
-      setStep(3);
+      setStep(2);
       
     } catch (err) {
       setError(err.message);
@@ -509,8 +505,9 @@ export default function CleanDemoPage() {
   };
 
   const handleBack = () => {
-    if (step === 2) setStep(1);
-    if (step === 3) setStep(2);
+    setStep(1);
+    setResult(null);
+    setError("");
   };
 
   if (isLoading) {
@@ -531,17 +528,10 @@ export default function CleanDemoPage() {
     <div className="page">
       <div className="container">
         {step === 1 && (
-          <InputScreen onContinue={handleInputContinue} />
+          <InputScreen onGenerate={handleGenerate} />
         )}
         
         {step === 2 && (
-          <PreferencesScreen 
-            onGenerate={handleGenerate}
-            onBack={handleBack}
-          />
-        )}
-        
-        {step === 3 && (
           <ResultsScreen 
             result={result}
             preferences={preferences}
