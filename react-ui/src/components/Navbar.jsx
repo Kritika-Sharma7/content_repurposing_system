@@ -15,9 +15,6 @@ export default function Navbar() {
           <NavLink to="/">Home</NavLink>
           <NavLink to="/demo">Demo</NavLink>
           <NavLink to="/architecture">Architecture</NavLink>
-          <a href="https://github.com" target="_blank" rel="noreferrer">
-            GitHub
-          </a>
         </nav>
 
         <button className="btn btn-dark" onClick={() => navigate("/demo")}>Try Demo</button>

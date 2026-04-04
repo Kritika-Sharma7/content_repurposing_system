@@ -2,6 +2,26 @@ import React, { useState } from "react";
 
 const API_BASE = "http://127.0.0.1:8000";
 
+const SAMPLE_INPUT = `The Future of Remote Work: Lessons from Five Years of Distributed Teams
+
+After leading distributed engineering teams for five years, I've learned that remote work success isn't about tools or policies—it's about trust and intentional communication.
+
+The biggest mistake companies make is trying to replicate office culture online. Forcing 9-to-5 schedules across time zones destroys productivity. Instead, focus on async-first communication where possible. We reduced meetings by 60% by switching to written proposals with comment-based discussions.
+
+Key insight: Documentation becomes your office. When we mandated that every decision must be documented, onboarding time dropped from 3 months to 3 weeks. New hires could trace the "why" behind every system.
+
+However, some synchronous time is crucial. We found that 2 hours of overlapping time daily was the sweet spot—enough for real-time collaboration without forcing anyone into awkward hours.
+
+The productivity data surprised us: Our remote team shipped 40% more features than our previous co-located team. The secret? Fewer interruptions and more deep work time. We tracked focus blocks and found remote workers averaged 4.2 hours of uninterrupted work daily, versus 2.1 hours in office.
+
+One counterintuitive finding: Random social interactions matter more than we thought. We created "virtual water cooler" channels and short, optional daily standups focused on personal updates. Team cohesion scores improved 25% after implementing these.
+
+The tools that made the biggest difference weren't fancy collaboration platforms—they were simple shared documents, async video messages (Loom became essential), and a well-organized knowledge base.
+
+For managers transitioning to remote: Stop measuring hours worked. Start measuring outcomes. Trust your team until they give you a reason not to. And over-communicate context—people need to understand the "why" more than ever when they can't absorb it through office osmosis.
+
+The future isn't fully remote or fully in-office. It's about giving people autonomy to do their best work, wherever that happens to be.`;
+
 // Helper function to format newsletter content
 function formatNewsletterContent(content) {
   if (!content) return '';
@@ -71,6 +91,13 @@ function InputScreen({ onGenerate }) {
           {isExpanded ? '↙' : '↗'}
         </button>
       </div>
+      
+      <button 
+        className="btn btn-primary mt-4"
+        onClick={() => setText(SAMPLE_INPUT)}
+      >
+        Try Sample Input
+      </button>
       
       <div className="mb-6 mt-6">
         <h3 className="text-left mb-4">Tone</h3>

@@ -13,7 +13,7 @@ export default function InputPanel({ inputText, setInputText, onSample, onRun })
       />
 
       <div className="row gap-sm">
-        <button className="btn btn-outline" onClick={onSample}>Use Sample</button>
+        <button className="btn btn-outline" onClick={onSample}>Try Sample Input</button>
         <button className="btn btn-dark" onClick={onRun}>Run Workflow</button>
       </div>
     </section>
