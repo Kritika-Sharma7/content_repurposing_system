@@ -133,8 +133,8 @@ export default function App() {
           <Route path="/demo" element={<CleanDemoPage />} />
           <Route path="/demo-tailwind" element={<NewDemoPage />} />
           <Route path="/demo-old" element={<DemoPage />} />
-          <Route path="/architecture" element={<SimpleArchPage />} />
-          <Route path="/architecture-old" element={<ArchitecturePage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
+          <Route path="/architecture-old" element={<SimpleArchPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
