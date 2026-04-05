@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// API Base URL Configuration
+// In production, this will use the env var or default to relative path
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.MODE === 'production' ? '' : 'http://localhost:8000');
 
 const SAMPLE_INPUT = `The Future of Remote Work: Lessons from Five Years of Distributed Teams
 
@@ -477,7 +480,7 @@ function ResultsScreen({ result, error, onBack }) {
               
               {/* Platform tabs */}
               <div className="platform-tabs-inline">
-                {["LinkedIn", "Twitter", "ContentForge Newsletter"].map(platform => (
+                {["LinkedIn", "Twitter", "Newsletter"].map(platform => (
                   <button 
                     key={platform}
                     className={`platform-tab-sm ${contentSubTab === platform.toLowerCase() ? 'active' : ''}`}

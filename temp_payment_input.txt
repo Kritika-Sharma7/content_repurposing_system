@@ -1,0 +1,9 @@
+Traditional payment rails begin to break down in agentic systems due to three key limitations.
+
+First, there is no native concept of conditional execution. Payment systems are designed to transfer funds, not to enforce whether specific execution-related conditions are actually met at the time of payment.
+
+Second, payments are not based on verified outcomes. Instead, they follow a pay-before or pay-after model, where the system assumes that the task will be completed correctly rather than validating it.
+
+Third, there is no built-in verification layer. Existing systems do not provide a way to link execution, payment, and delivery into a single verifiable process, which makes it difficult to ensure correctness and accountability.
+
+Together, these limitations show that traditional payment rails are built to move money securely, but not to ensure that money is transferred based on actual execution.

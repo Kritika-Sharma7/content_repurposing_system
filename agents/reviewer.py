@@ -69,20 +69,24 @@ A key point is STRONG ONLY IF ALL conditions are met:
 
 DO NOT mark as "strong" just because the idea is mentioned.
 
-## ⚠️ TWITTER STRICT RULE
+## ⚠️ TWITTER NARRATIVE THREAD RULE
 
-For Twitter format specifically:
-- Each tweet must clearly explain ONE idea with reasoning
-- If a tweet only states an idea without explanation → mark as "weak"
-- If multiple ideas are crammed in one tweet → mark as "weak"
-- If a tweet is just a claim without cause-effect → mark as "weak"
+For Twitter format specifically (RELAXED for narrative threads):
+- Twitter threads are NARRATIVE FLOWS where tweets build on each other
+- A key point can span 2-3 tweets in a thread (setup → explanation → impact)
+- Evaluate if the KEY POINT's idea is present across the thread, not just in one tweet
+- Only mark as "weak" if the key point is barely mentioned or lacks ANY reasoning across all tweets
+- Individual tweets don't need explicit "because/this leads to" if the thread provides the explanation
 
-Example:
-❌ WEAK: "Embedding trust into system logic was another breakthrough."
-   → Just a statement, no explanation of HOW or WHY
+Example of STRONG narrative thread:
+Tweet 1: "Most teams fail at remote work for one reason: They replicate the office online."
+Tweet 2: "Same hours. Same meetings. Same expectations."
+Tweet 3: "That approach kills productivity because people stay 'available' but never get deep work time."
+   → Key point is STRONG because the explanation flows across tweets 1-3
 
-✅ STRONG: "Embedding trust into system logic eliminates bottlenecks because it removes dependency on human oversight for every decision."
-   → Explains mechanism (HOW) and impact (WHY)
+Only mark as WEAK if:
+- The key point is mentioned in passing without any context
+- The thread never explains WHY it matters or HOW it works (across all tweets)
 
 ## ❌ WEAK INDICATORS
 
@@ -199,16 +203,8 @@ class ReviewerAgent:
                 if not kp:
                     continue
                 
-                # 🔥 FAILSAFE: Force weak detection for short/shallow Twitter expressions
-                if kp_eval.quality == "strong" and fmt_name == "twitter":
-                    # Find which tweet contains this KP
-                    for tweet in formatted.twitter.tweets:
-                        # If tweet is too short (less than 12 words), it can't be "strong"
-                        if len(tweet.split()) < 12:
-                            # Check if this tweet likely contains the KP (simple heuristic)
-                            kp_eval.quality = "weak"
-                            kp_eval.reason = f"Tweet too short to fully explain {kp_id}"
-                            break
+                # REMOVED: Failsafe override for short tweets
+                # Narrative threads can have short setup tweets that are part of the flow
                 
                 # Coverage issue: missing KPs
                 if kp_eval.quality == "missing" or not kp_eval.present:
@@ -230,6 +226,10 @@ class ReviewerAgent:
                 
                 # Clarity issue: weak KPs
                 elif kp_eval.quality == "weak":
+                    # RELAXED: For Twitter, only flag critical priority weak KPs (allow narrative flow)
+                    if fmt_name == "twitter" and kp.priority != "critical":
+                        continue  # Skip non-critical weak KPs in Twitter threads
+                    
                     # Create clarity issue for weak expression
                     priority = "medium"  # Default medium priority for weak expression
                     if kp.priority == "critical":
@@ -285,47 +285,39 @@ class ReviewerAgent:
         summary: SummaryOutput
     ) -> List[ReviewIssue]:
         """
-        Check Twitter tweets for shallow/weak expressions.
+        Check Twitter thread for overall narrative quality.
         
-        DETECTION RULES:
-        - Tweet < 15 words → likely too short to explain an idea
-        - No cause-effect words (because, leads to, without, this, etc.) → weak
+        RELAXED RULES for narrative threads:
+        - Threads are evaluated as a WHOLE, not tweet-by-tweet
+        - Only flag if the entire thread lacks reasoning across ALL tweets
+        - Allow short setup/transition tweets as part of narrative flow
         """
         issues = []
+        
+        # Expanded cause-effect keywords for narrative threads
         cause_effect_keywords = [
             "because", "since", "leads to", "results in", "without", 
-            "this matters", "this means", "that's why", "enables", "eliminates"
+            "this matters", "this means", "that's why", "enables", "eliminates",
+            "when", "if", "then", "so", "but", "however", "instead",
+            "allowing", "preventing", "ensuring", "causing", "creating"
         ]
         
-        for i, tweet in enumerate(formatted.twitter.tweets):
-            word_count = len(tweet.split())
-            has_cause_effect = any(kw in tweet.lower() for kw in cause_effect_keywords)
-            
-            # Rule 1: Tweet too short
-            if word_count < 15:
-                issues.append(ReviewIssue(
-                    issue_id="",
-                    type="clarity",
-                    priority="medium",
-                    problem=f"Tweet {i+1} is too short ({word_count} words) to fully explain an idea",
-                    reason="Short tweets tend to state ideas without explaining cause-effect or impact",
-                    suggestion=f"Expand tweet {i+1} to include WHY this matters or HOW it works",
-                    affects=["twitter"],
-                    missing_kps=[]
-                ))
-            
-            # Rule 2: No cause-effect explanation
-            elif not has_cause_effect and word_count < 30:
-                issues.append(ReviewIssue(
-                    issue_id="",
-                    type="clarity",
-                    priority="medium",
-                    problem=f"Tweet {i+1} lacks cause-effect explanation",
-                    reason="Tweet states an idea but doesn't explain WHY it matters or HOW it works",
-                    suggestion=f"Add cause-effect reasoning to tweet {i+1} (e.g., 'because...', 'this leads to...')",
-                    affects=["twitter"],
-                    missing_kps=[]
-                ))
+        # Check overall thread for any cause-effect reasoning
+        full_thread = " ".join(formatted.twitter.tweets).lower()
+        has_any_reasoning = any(kw in full_thread for kw in cause_effect_keywords)
+        
+        # Only flag if the ENTIRE thread has NO reasoning at all (very rare)
+        if not has_any_reasoning and len(formatted.twitter.tweets) > 2:
+            issues.append(ReviewIssue(
+                issue_id="",
+                type="clarity",
+                priority="medium",
+                problem=f"Twitter thread lacks cause-effect reasoning across all {len(formatted.twitter.tweets)} tweets",
+                reason="Narrative threads should explain WHY ideas matter or HOW they work, even if distributed across tweets",
+                suggestion="Add explanatory language (e.g., 'because...', 'this leads to...', 'when...', 'without...') to clarify the reasoning",
+                affects=["twitter"],
+                missing_kps=[]
+            ))
         
         return issues
 
